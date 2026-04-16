@@ -38,7 +38,6 @@ function TransactionPreview(props: TransactionPreviewProps) {
         contextMenuAnchor,
         checkIfContextMenuActive = () => {},
         shouldDisplayContextMenu,
-        iouReportID,
         transactionID: transactionIDFromProps,
         onPreviewPressed,
         shouldHighlight,
@@ -47,17 +46,15 @@ function TransactionPreview(props: TransactionPreviewProps) {
         originalReportID,
     } = props;
 
-    const [report] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${iouReportID}`);
-    const [chatReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${chatReportID}`);
     const route = useRoute<PlatformStackRouteProp<TransactionDuplicateNavigatorParamList, typeof SCREENS.TRANSACTION_DUPLICATE.REVIEW>>();
     const isMoneyRequestAction = isMoneyRequestActionReportActionsUtils(action);
     const transactionID = transactionIDFromProps ?? (isMoneyRequestAction ? getOriginalMessage(action)?.IOUTransactionID : undefined);
     const [transaction] = useOnyx(`${ONYXKEYS.COLLECTION.TRANSACTION}${getNonEmptyStringOnyxID(transactionID)}`);
     const [originalTransaction] = useOnyx(`${ONYXKEYS.COLLECTION.TRANSACTION}${getNonEmptyStringOnyxID(transaction?.comment?.originalTransactionID)}`);
-    const [transactionReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${getNonEmptyStringOnyxID(transaction?.reportID)}`);
-    const [policy] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY}${getNonEmptyStringOnyxID(transactionReport?.policyID)}`);
-    const [policyCategories] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${getNonEmptyStringOnyxID(transactionReport?.policyID)}`);
-    const [policyTags] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY_TAGS}${getNonEmptyStringOnyxID(transactionReport?.policyID)}`);
+    const [iouReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${getNonEmptyStringOnyxID(transaction?.reportID)}`);
+    const [policy] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY}${getNonEmptyStringOnyxID(iouReport?.policyID)}`);
+    const [policyCategories] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY_CATEGORIES}${getNonEmptyStringOnyxID(iouReport?.policyID)}`);
+    const [policyTags] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY_TAGS}${getNonEmptyStringOnyxID(iouReport?.policyID)}`);
     const violations = useTransactionViolations(transaction?.transactionID);
     const [walletTerms] = useOnyx(ONYXKEYS.WALLET_TERMS);
     const session = useSession();
@@ -90,7 +87,7 @@ function TransactionPreview(props: TransactionPreviewProps) {
 
     const navigateToReviewFields = () =>
         Navigation.navigate(
-            getReviewNavigationRoute(Navigation.getActiveRoute(), route.params?.threadReportID, transaction, duplicates, policy, policyCategories, policyTags ?? {}, transactionReport),
+            getReviewNavigationRoute(Navigation.getActiveRoute(), route.params?.threadReportID, transaction, duplicates, policy, policyCategories, policyTags ?? {}, iouReport),
         );
 
     const transactionPreview = transaction;
@@ -123,11 +120,10 @@ function TransactionPreview(props: TransactionPreviewProps) {
                     {...props}
                     action={iouAction}
                     isBillSplit={isBillSplit && !transaction?.comment?.originalTransactionID}
-                    chatReport={chatReport}
                     personalDetails={personalDetails}
                     transaction={transactionPreview}
                     transactionRawAmount={transactionRawAmount}
-                    report={report}
+                    report={iouReport}
                     violations={violations}
                     offlineWithFeedbackOnClose={offlineWithFeedbackOnClose}
                     navigateToReviewFields={navigateToReviewFields}
@@ -148,11 +144,10 @@ function TransactionPreview(props: TransactionPreviewProps) {
             {...props}
             action={iouAction}
             isBillSplit={isBillSplit}
-            chatReport={chatReport}
             personalDetails={personalDetails}
             transaction={originalTransaction ?? transaction}
             transactionRawAmount={transactionRawAmount}
-            report={report}
+            report={iouReport}
             violations={violations}
             offlineWithFeedbackOnClose={offlineWithFeedbackOnClose}
             navigateToReviewFields={navigateToReviewFields}

@@ -137,6 +137,7 @@ import {
     isCompletedTaskReport,
     isExpenseReport,
     isHarvestCreatedExpenseReport as isHarvestCreatedExpenseReportUtils,
+    isIOUReport,
     isTaskReport,
     shouldDisplayThreadReplies as shouldDisplayThreadRepliesUtils,
 } from '@libs/ReportUtils';
@@ -979,15 +980,12 @@ function PureReportActionItem({
         // Show the preview for when expense is present
         if (isIOURequestReportAction(action)) {
             const isSplitScanWithNoAmount = moneyRequestActionType === CONST.IOU.REPORT_ACTION_TYPE.SPLIT && moneyRequestOriginalMessage?.amount === 0;
-            const chatReportID = moneyRequestOriginalMessage?.IOUReportID ? report?.chatReportID : reportID;
-            // There is no single iouReport for bill splits, so only 1:1 requests require an iouReportID
-            // TODO youssef
-            const iouReportID = moneyRequestOriginalMessage?.IOUReportID?.toString();
+            const chatReportID = isIOUReport(report) ? report?.chatReportID : reportID;
             children = (
                 <MoneyRequestAction
-                    // If originalMessage.iouReportID is set, this is a 1:1 IOU expense in a DM chat whose reportID is report.chatReportID
                     chatReportID={chatReportID}
-                    requestReportID={iouReportID}
+                    // We only display IOU actions in selfDM expenses, and they don't have any linked expense report
+                    requestReportID={undefined}
                     reportID={reportID}
                     action={action}
                     isHovered={hovered}
@@ -1007,7 +1005,7 @@ function PureReportActionItem({
                     children = (
                         <View style={[styles.mt1, styles.w100]}>
                             <TransactionPreview
-                                iouReportID={getIOUReportIDFromReportActionPreview(action)}
+                                iouReportID={undefined}
                                 chatReportID={reportID}
                                 reportID={reportID}
                                 action={action}
