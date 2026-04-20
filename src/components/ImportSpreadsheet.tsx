@@ -195,7 +195,7 @@ function ImportSpreadsheet({backTo, goTo, shouldForceReplaceNavigation = false, 
                 {...panResponder.panHandlers}
             >
                 <Text style={[styles.textFileUpload, styles.mb1]}>{isImportingMultiLevelTags ? translate('spreadsheet.import') : translate('spreadsheet.upload')}</Text>
-                <View style={[styles.flexRow]}>
+                <View style={[styles.flexRow, styles.flex1]}>
                     <RenderHTML html={getTextForImportModal()} />
                 </View>
             </View>
