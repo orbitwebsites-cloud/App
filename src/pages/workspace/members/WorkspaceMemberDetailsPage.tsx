@@ -104,13 +104,6 @@ function WorkspaceMemberDetailsPage({personalDetails, policy, route}: WorkspaceM
     const {isAccountLocked} = useLockedAccountState();
     const {showLockedAccountModal} = useLockedAccountActions();
 
-    const {approvalWorkflows} = convertPolicyEmployeesToApprovalWorkflows({
-        policy,
-        personalDetails: personalDetails ?? {},
-        localeCompare,
-        currentUserLogin: currentUserPersonalDetails?.login,
-    });
-
     useEffect(() => {
         openPolicyMemberProfilePage(policyID, accountID);
     }, [policyID, accountID]);
