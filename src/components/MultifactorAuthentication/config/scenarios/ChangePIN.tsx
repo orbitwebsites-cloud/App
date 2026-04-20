@@ -76,7 +76,7 @@ ChangePINSuccessScreen.displayName = 'ChangePINSuccessScreen';
  * This scenario is used when a UK/EU cardholder changes the PIN of their physical card.
  */
 export default {
-    allowedAuthenticationMethods: [CONST.MULTIFACTOR_AUTHENTICATION.TYPE.BIOMETRICS, CONST.MULTIFACTOR_AUTHENTICATION.TYPE.PASSKEYS],
+    allowedAuthenticationMethods: [CONST.MULTIFACTOR_AUTHENTICATION.TYPE.BIOMETRICS_HSM, CONST.MULTIFACTOR_AUTHENTICATION.TYPE.PASSKEYS],
     action: changePINForCard,
     successScreen: <ChangePINSuccessScreen />,
     defaultClientFailureScreen: <ClientFailureScreen />,
