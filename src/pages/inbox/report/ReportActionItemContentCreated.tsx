@@ -178,7 +178,7 @@ function ReportActionItemContentCreated({
                             policy={policy}
                             isCombinedReport
                             pendingAction={action?.pendingAction}
-                            shouldShowTotal={transaction ? transactionCurrency !== report?.currency : false}
+                            shouldShowTotal={transaction && !!report?.currency ? transactionCurrency !== report.currency : false}
                             shouldHideThreadDividerLine={false}
                             shouldShowAnimatedBackground={false}
                         />

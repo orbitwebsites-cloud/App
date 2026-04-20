@@ -493,6 +493,7 @@ function MoneyRequestView({
 
     const shouldShowConvertedAmount =
         transactionConvertedAmount &&
+        !!moneyRequestReport?.currency &&
         currency !== moneyRequestReport?.currency &&
         !isFromCardImport &&
         transaction?.reportID !== CONST.REPORT.UNREPORTED_REPORT_ID &&

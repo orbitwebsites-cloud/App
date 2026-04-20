@@ -212,6 +212,7 @@ function prepareRejectMoneyRequestData(
                     key: `${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`,
                     value: {
                         reportID: null,
+                        convertedAmount: 0,
                         ...(transactionCommentCleanup ?? {}),
                     },
                 },
@@ -242,6 +243,7 @@ function prepareRejectMoneyRequestData(
                 key: `${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`,
                 value: {
                     reportID: transaction?.reportID ?? reportID,
+                    convertedAmount: transaction?.convertedAmount ?? 0,
                 },
             });
 
@@ -265,6 +267,7 @@ function prepareRejectMoneyRequestData(
                     key: `${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`,
                     value: {
                         reportID: CONST.REPORT.UNREPORTED_REPORT_ID,
+                        convertedAmount: 0,
                         ...(transactionCommentCleanup ?? {}),
                     },
                 },
@@ -608,6 +611,7 @@ function prepareRejectMoneyRequestData(
                 key: `${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`,
                 value: {
                     reportID: rejectedToReportID,
+                    convertedAmount: 0,
                     ...(transactionCommentCleanup ?? {}),
                 },
             },
@@ -648,6 +652,7 @@ function prepareRejectMoneyRequestData(
             key: `${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`,
             value: {
                 reportID: transaction?.reportID ?? reportID,
+                convertedAmount: transaction?.convertedAmount ?? 0,
             },
         });
     } else {
