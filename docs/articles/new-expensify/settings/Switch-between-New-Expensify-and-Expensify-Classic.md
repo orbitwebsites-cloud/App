@@ -52,6 +52,10 @@ If you don’t see the option to **Switch to Expensify Classic**, it may have be
 
 # FAQ
 
+## What happens if I try to switch to Expensify Classic while tracking a GPS trip?
+
+If you have an active GPS distance trip in progress, Expensify will display a warning before switching. You can choose to stop the GPS trip and switch, or cancel to stay in New Expensify and continue tracking.
+
 ## Can I use both New Expensify and Expensify Classic?
 
 Yes! You can switch between them at any time—unless restricted by your admin.

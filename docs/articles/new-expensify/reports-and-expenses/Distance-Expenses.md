@@ -145,6 +145,10 @@ If the rate isn’t valid in the new Workspace, the expense will show a “Rate 
 
 No. GPS tracking runs in the background on your mobile device. A notification confirms that tracking is active, so you can use other apps or lock your phone while driving.
 
+## What happens if I switch to Expensify Classic during a GPS trip?
+
+If you try to switch to Expensify Classic while a GPS trip is active, a warning will appear. You can choose to stop the trip and switch, or cancel to stay in New Expensify and continue tracking. To avoid losing trip data, stop the GPS trip before switching.
+
 ## What does the GPS Distance expense receipt look like?
 
 The GPS receipt shows a map of your actual route driven, along with the total distance and calculated reimbursement amount. It looks similar to a map-based distance receipt, but reflects the path you actually took rather than a suggested route.
