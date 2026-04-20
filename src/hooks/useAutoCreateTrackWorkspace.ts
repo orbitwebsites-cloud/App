@@ -50,7 +50,6 @@ function useAutoCreateTrackWorkspace() {
     const [lastWorkspaceNumber] = useOnyx(ONYXKEYS.COLLECTION.POLICY, {selector: lastWorkspaceNumberWithEmailSelector});
     const [activePolicyID] = useOnyx(ONYXKEYS.NVP_ACTIVE_POLICY_ID);
     const [conciergeChatReportID = ''] = useOnyx(ONYXKEYS.CONCIERGE_REPORT_ID);
-    const [onboardingValues] = useOnyx(ONYXKEYS.NVP_ONBOARDING);
     const currentUserPersonalDetails = useCurrentUserPersonalDetails();
     const archivedReportsIdSet = useArchivedReportsIdSet();
     const {isBetaEnabled} = usePermissions();
@@ -65,8 +64,6 @@ function useAutoCreateTrackWorkspace() {
     // accessed report. This behavior is tied to screen size, not responsive layout mode.
     // eslint-disable-next-line rulesdir/prefer-shouldUseNarrowLayout-instead-of-isSmallScreenWidth
     const {isSmallScreenWidth} = useResponsiveLayout();
-
-    const mergedAccountConciergeReportID = !onboardingValues?.shouldRedirectToClassicAfterMerge && onboardingValues?.shouldValidate ? conciergeChatReportID : undefined;
 
     const autoCreateTrackWorkspace = useCallback(
         async (firstName: string, lastName: string, onboardingPurposeSelected: OnboardingPurpose) => {
@@ -127,7 +124,7 @@ function useAutoCreateTrackWorkspace() {
                     conciergeChatReportID,
                     archivedReportsIdSet,
                     newPolicyID,
-                    mergedAccountConciergeReportID,
+                    newAdminsChatReportID,
                     false,
                     rhpVariant,
                 );
@@ -154,7 +151,6 @@ function useAutoCreateTrackWorkspace() {
             isBetaEnabled,
             conciergeChatReportID,
             archivedReportsIdSet,
-            mergedAccountConciergeReportID,
         ],
     );
 
