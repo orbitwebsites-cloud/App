@@ -2560,6 +2560,7 @@ const CONST = {
         SUGGESTER_INNER_PADDING: 8,
         SUGGESTION_ROW_HEIGHT: 40,
         SMALL_CONTAINER_HEIGHT_FACTOR: 2.5,
+        SMALL_CONTAINER_HEIGHT_FACTOR_LANDSCAPE_MODE: 1.5,
         MAX_AMOUNT_OF_SUGGESTIONS: 20,
         MAX_AMOUNT_OF_VISIBLE_SUGGESTIONS_IN_CONTAINER: 5,
         HERE_TEXT: '@here',
@@ -3937,6 +3938,7 @@ const CONST = {
             AMEX_DIRECT: 'oauth.americanexpressfdx.com',
             AMEX_FILE_DOWNLOAD: 'americanexpressfd.us',
             CSV: 'ccupload',
+            CSV_CLASSIC: 'csv',
             MOCK_BANK: 'oauth.mockbank.com',
             UPLOAD: 'upload',
         },
@@ -8117,7 +8119,6 @@ const CONST = {
         SEARCH_KEYS: {
             EXPENSES: 'expenses',
             REPORTS: 'reports',
-            CHATS: 'chats',
             SUBMIT: 'submit',
             APPROVE: 'approve',
             PAY: 'pay',
@@ -8125,7 +8126,6 @@ const CONST = {
             STATEMENTS: 'statements',
             UNAPPROVED_CASH: 'unapprovedCash',
             UNAPPROVED_CARD: 'unapprovedCard',
-            EXPENSIFY_CARD: 'expensifyCard',
             RECONCILIATION: 'reconciliation',
             TOP_SPENDERS: 'topSpenders',
             TOP_CATEGORIES: 'topCategories',
@@ -8769,6 +8769,9 @@ const CONST = {
     },
 
     SENTRY_LABEL: {
+        BILLING_BANNER: {
+            RIGHT_ICON: 'BillingBanner-RightIcon',
+        },
         NAVIGATION_TAB_BAR: {
             EXPENSIFY_LOGO: 'NavigationTabBar-ExpensifyLogo',
             INBOX: 'NavigationTabBar-Inbox',
