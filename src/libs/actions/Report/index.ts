@@ -5883,7 +5883,6 @@ function deleteAppReport({
             originalMessage: {
                 // eslint-disable-next-line @typescript-eslint/no-deprecated
                 ...reportAction.originalMessage,
-                IOUReportID: CONST.REPORT.UNREPORTED_REPORT_ID,
                 type: CONST.IOU.TYPE.TRACK,
             },
             reportActionID: newReportActionID,

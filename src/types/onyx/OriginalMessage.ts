@@ -30,7 +30,7 @@ type IOUDetails = {
     currency: string;
 };
 
-/** Model of `IOU` report action */
+/** Base fields shared across all `IOU` report action types */
 type OriginalMessageIOU = {
     /** The ID of the `IOU` transaction */
     IOUTransactionID?: string;
@@ -50,12 +50,6 @@ type OriginalMessageIOU = {
     /** When was the `IOU` last modified */
     lastModified?: string;
 
-    /** Who participated in the transaction, by accountID */
-    participantAccountIDs?: number[];
-
-    /** Type of `IOU` report action */
-    type: ValueOf<typeof CONST.IOU.REPORT_ACTION_TYPE>;
-
     /** If the action was cancelled, this is the reason for the cancellation */
     cancellationReason?: string;
 
@@ -73,28 +67,16 @@ type OriginalMessageIOU = {
 
     /** The bank account id */
     bankAccountID?: number;
-} & (
-    | {
-          /** How much was transaction */
-          amount: number;
 
-          /** Currency of the transaction money */
-          currency: string;
+    /** Only exists when we are sending money */
+    IOUDetails?: IOUDetails;
 
-          /** Only exists when we are sending money */
-          IOUDetails?: IOUDetails;
-      }
-    | {
-          /** How much was transaction */
-          amount?: number;
+    /** Who participated in the split, by accountID */
+    participantAccountIDs?: number[];
 
-          /** Currency of the transaction money */
-          currency?: string;
-
-          /** Only exists when we are sending money */
-          IOUDetails: IOUDetails;
-      }
-);
+    /** Type of `IOU` report action */
+    type: ValueOf<typeof CONST.IOU.REPORT_ACTION_TYPE>;
+};
 
 /** Names of moderation decisions */
 type DecisionName = ValueOf<

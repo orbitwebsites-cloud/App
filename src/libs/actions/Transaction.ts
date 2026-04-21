@@ -1039,7 +1039,6 @@ function changeTransactionsReport({
             originalMessage: {
                 ...originalMessage,
                 IOUTransactionID: originalMessage?.IOUTransactionID ?? transaction.transactionID,
-                IOUReportID: reportID,
                 type: actionType,
             },
             reportActionID: optimisticMoneyRequestReportActionID,

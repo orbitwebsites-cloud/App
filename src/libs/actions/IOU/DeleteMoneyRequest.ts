@@ -548,6 +548,7 @@ function getCleanUpTransactionThreadReportOnyxData({
     }
 
     // Update the child comment visible count for reportPreviewAction.
+    // TODO youssef check if this is used
     const iouReportID = isMoneyRequestAction(reportAction) ? getOriginalMessage(reportAction)?.IOUReportID : undefined;
     const iouReport = allReports?.[`${ONYXKEYS.COLLECTION.REPORT}${iouReportID}`];
     const chatReport = allReports?.[`${ONYXKEYS.COLLECTION.REPORT}${iouReport?.chatReportID}`];
