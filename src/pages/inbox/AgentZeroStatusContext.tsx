@@ -88,6 +88,15 @@ function AgentZeroStatusGate({reportID, children}: React.PropsWithChildren<{repo
     // Server-driven processing label from report name-value pairs (e.g. "Looking up categories...")
     const [serverLabel] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_NAME_VALUE_PAIRS}${reportID}`, {selector: agentZeroProcessingIndicatorSelector});
 
+    // Coarse proxy for the backend's getManagingAgentByChatID check. If the user has an AM/PM,
+    // the admins room and AM DM are likely managed — backend suppresses the server label there,
+    // so firing the optimistic indicator would leave "Concierge is thinking..." stuck on screen
+    // for the full OPTIMISTIC_TIMEOUT. Cost: a ~1s delay before the label appears in this user's
+    // own Concierge DM (backend still sets it; we just don't render optimistically).
+    const [hasManager] = useOnyx(ONYXKEYS.ACCOUNT, {
+        selector: (account) => !!account?.accountManagerAccountID || !!account?.partnerManagerAccountID,
+    });
+
     // Timestamp set when the user sends a message, before the server label arrives — shows "Concierge is thinking..."
     const [optimisticStartTime, setOptimisticStartTime] = useState<number | null>(null);
     // Debounced label shown to the user — smooths rapid server label changes
@@ -238,6 +247,9 @@ function AgentZeroStatusGate({reportID, children}: React.PropsWithChildren<{repo
     }, [optimisticStartTime]);
 
     const kickoffWaitingIndicator = () => {
+        if (hasManager) {
+            return;
+        }
         setOptimisticStartTime(Date.now());
     };
 
