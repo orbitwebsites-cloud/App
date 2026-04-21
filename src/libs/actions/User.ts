@@ -953,10 +953,6 @@ function setInboxTab(tab: ValueOf<typeof CONST.INBOX_TAB>) {
     Onyx.merge(ONYXKEYS.NVP_INBOX_TAB, tab);
 }
 
-function setInboxUnreadFilter(enabled: boolean) {
-    Onyx.merge(ONYXKEYS.NVP_INBOX_UNREAD_FILTER, enabled);
-}
-
 function setShouldUseStagingServer(shouldUseStagingServer: boolean) {
     if (CONFIG.IS_HYBRID_APP) {
         HybridAppModule.shouldUseStaging(shouldUseStagingServer);
@@ -1882,7 +1878,6 @@ export {
     subscribeToUserEvents,
     updatePreferredSkinTone,
     setInboxTab,
-    setInboxUnreadFilter,
     setShouldUseStagingServer,
     togglePlatformMute,
     joinScreenShare,

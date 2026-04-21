@@ -2085,7 +2085,7 @@ const CONST = {
     },
     INBOX_TAB: {
         ALL: 'all',
-        TODO: 'todo',
+        UNREAD: 'unread',
         EXPENSES: 'expenses',
         DMS: 'dms',
     },

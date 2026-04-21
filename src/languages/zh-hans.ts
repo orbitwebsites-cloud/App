@@ -2706,10 +2706,9 @@ ${amount}，商户：${merchant} - 日期：${date}`,
     },
     inboxTabs: {
         all: 'All',
-        todo: 'To-do',
+        unread: 'Unread',
         expenses: 'Expenses',
         dms: 'DMs',
-        unreadToggle: 'Unreads',
     },
     reportDetailsPage: {
         inWorkspace: (policyName: string) => `在 ${policyName} 中`,

@@ -2794,10 +2794,9 @@ ${amount} pour ${merchant} - ${date}`,
     },
     inboxTabs: {
         all: 'All',
-        todo: 'To-do',
+        unread: 'Unread',
         expenses: 'Expenses',
         dms: 'DMs',
-        unreadToggle: 'Unreads',
     },
     reportDetailsPage: {
         inWorkspace: (policyName: string) => `dans ${policyName}`,
