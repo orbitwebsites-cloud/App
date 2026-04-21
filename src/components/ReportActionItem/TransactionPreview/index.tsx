@@ -94,8 +94,6 @@ function TransactionPreview(props: TransactionPreviewProps) {
 
     const {isBillSplit} = getOriginalTransactionWithSplitInfo(transaction, originalTransaction);
 
-    const iouAction = action;
-
     // See description of `transactionRawAmount` prop for more context
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const transactionRawAmount = (Number(transaction?.modifiedAmount) || transaction?.amount) ?? 0;
@@ -118,7 +116,7 @@ function TransactionPreview(props: TransactionPreviewProps) {
                 <TransactionPreviewContent
                     /* eslint-disable-next-line react/jsx-props-no-spreading */
                     {...props}
-                    action={iouAction}
+                    action={action}
                     isBillSplit={isBillSplit && !transaction?.comment?.originalTransactionID}
                     personalDetails={personalDetails}
                     transaction={transactionPreview}
@@ -142,7 +140,7 @@ function TransactionPreview(props: TransactionPreviewProps) {
         <TransactionPreviewContent
             /* eslint-disable-next-line react/jsx-props-no-spreading */
             {...props}
-            action={iouAction}
+            action={action}
             isBillSplit={isBillSplit}
             personalDetails={personalDetails}
             transaction={originalTransaction ?? transaction}

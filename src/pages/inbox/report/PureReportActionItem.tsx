@@ -30,7 +30,6 @@ import CreatedReportForUnapprovedTransactionsAction from '@components/ReportActi
 import CreateHarvestReportAction from '@components/ReportActionItem/CreateHarvestReportAction';
 import ExportIntegration from '@components/ReportActionItem/ExportIntegration';
 import IssueCardMessage from '@components/ReportActionItem/IssueCardMessage';
-import MoneyRequestAction from '@components/ReportActionItem/MoneyRequestAction';
 import MoneyRequestReportPreview from '@components/ReportActionItem/MoneyRequestReportPreview';
 import MovedTransactionAction from '@components/ReportActionItem/MovedTransactionAction';
 import TaskAction from '@components/ReportActionItem/TaskAction';
@@ -981,23 +980,7 @@ function PureReportActionItem({
         if (isIOURequestReportAction(action)) {
             const isSplitScanWithNoAmount = moneyRequestActionType === CONST.IOU.REPORT_ACTION_TYPE.SPLIT && moneyRequestOriginalMessage?.amount === 0;
             const chatReportID = isIOUReport(report) ? report?.chatReportID : reportID;
-            children = (
-                <MoneyRequestAction
-                    chatReportID={chatReportID}
-                    // We only display IOU actions in selfDM expenses, and they don't have any linked expense report
-                    requestReportID={undefined}
-                    reportID={reportID}
-                    action={action}
-                    isHovered={hovered}
-                    contextMenuAnchor={popoverAnchorRef.current}
-                    checkIfContextMenuActive={toggleContextMenuFromActiveReportAction}
-                    style={displayAsGroup ? [] : [styles.mt2]}
-                    isWhisper={isWhisper}
-                    shouldDisplayContextMenu={shouldDisplayContextMenuValue}
-                    originalReportID={originalReportID}
-                />
-            );
-
+            children = emptyHTML;
             if (report?.type === CONST.REPORT.TYPE.CHAT) {
                 const isSplitBill = moneyRequestActionType === CONST.IOU.REPORT_ACTION_TYPE.SPLIT;
                 const shouldShowSplitPreview = isSplitBill || isSplitScanWithNoAmount;
@@ -1044,8 +1027,6 @@ function PureReportActionItem({
                             />
                         </View>
                     );
-                } else {
-                    children = emptyHTML;
                 }
             }
         } else if (isTripPreview(action)) {
