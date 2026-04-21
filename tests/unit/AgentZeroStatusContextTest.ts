@@ -256,6 +256,56 @@ describe('AgentZeroStatusContext', () => {
             expect(result.current.statusLabel).toBe(serverLabel);
         });
 
+        it('should skip optimistic indicator when user has an account manager', async () => {
+            // Given a Concierge chat and the current user has an AM assigned
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: '42'});
+
+            const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
+            await waitForBatchedUpdates();
+
+            // When the user triggers the waiting indicator
+            act(() => {
+                result.current.kickoffWaitingIndicator();
+            });
+
+            // Then it should not flip to processing — backend is the source of truth for managed chats
+            await waitForBatchedUpdates();
+            expect(result.current.isProcessing).toBe(false);
+            expect(result.current.statusLabel).toBe('');
+        });
+
+        it('should skip optimistic indicator when user has a partner manager', async () => {
+            // Given a Concierge chat and the current user has a PM assigned
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {partnerManagerAccountID: 42});
+
+            const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
+            await waitForBatchedUpdates();
+
+            act(() => {
+                result.current.kickoffWaitingIndicator();
+            });
+
+            await waitForBatchedUpdates();
+            expect(result.current.isProcessing).toBe(false);
+            expect(result.current.statusLabel).toBe('');
+        });
+
+        it('should still fire optimistic indicator when user has no AM/PM', async () => {
+            // Given a Concierge chat with no AM/PM on the account (baseline)
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: undefined, partnerManagerAccountID: undefined});
+
+            const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
+            await waitForBatchedUpdates();
+
+            act(() => {
+                result.current.kickoffWaitingIndicator();
+            });
+
+            await waitForBatchedUpdates();
+            expect(result.current.isProcessing).toBe(true);
+            expect(result.current.statusLabel).toBe('Thinking...');
+        });
+
         it('should clear optimistic waiting state when server label arrives', async () => {
             // Given a Concierge chat with optimistic waiting state
             const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
