@@ -16,6 +16,7 @@ import {useCurrentReportIDState} from './useCurrentReportID';
 import useCurrentUserPersonalDetails from './useCurrentUserPersonalDetails';
 import useLocalize from './useLocalize';
 import useMappedPolicies from './useMappedPolicies';
+import useNetwork from './useNetwork';
 import useOnyx from './useOnyx';
 import usePrevious from './usePrevious';
 import useReportAttributes from './useReportAttributes';
@@ -91,6 +92,7 @@ function SidebarOrderedReportsContextProvider({
     const reportAttributes = useReportAttributes();
     const [currentReportsToDisplay, setCurrentReportsToDisplay] = useState<ReportsToDisplayInLHN>({});
     const {shouldUseNarrowLayout} = useResponsiveLayout();
+    const {isOffline} = useNetwork();
     const {accountID} = useCurrentUserPersonalDetails();
     const {currentReportID: currentReportIDValue} = useCurrentReportIDState();
     const derivedCurrentReportID = currentReportIDForTests ?? currentReportIDValue;
@@ -101,6 +103,7 @@ function SidebarOrderedReportsContextProvider({
     const [clearCacheDummyCounter, setClearCacheDummyCounter] = useState(0);
 
     const prevBetas = usePrevious(betas);
+    const prevIsOffline = usePrevious(isOffline);
 
     const perfRef = useRef<{hookDuration: number}>({
         hookDuration: 0,
@@ -113,7 +116,7 @@ function SidebarOrderedReportsContextProvider({
     const getUpdatedReports = useCallback(() => {
         const reportsToUpdate = new Set<string>();
 
-        if (betas !== prevBetas) {
+        if (betas !== prevBetas || isOffline !== prevIsOffline) {
             for (const key of Object.keys(chatReports ?? {})) {
                 reportsToUpdate.add(key);
             }
@@ -184,6 +187,8 @@ function SidebarOrderedReportsContextProvider({
         transactions,
         betas,
         prevBetas,
+        isOffline,
+        prevIsOffline,
         prevDerivedCurrentReportID,
         derivedCurrentReportID,
     ]);
@@ -210,6 +215,7 @@ function SidebarOrderedReportsContextProvider({
                 reportAttributes,
                 draftComments: reportsDrafts,
                 transactions,
+                isOffline,
             });
         } else {
             Log.info('[useSidebarOrderedReports] building reportsToDisplay from scratch');
@@ -220,6 +226,7 @@ function SidebarOrderedReportsContextProvider({
                 reportsDrafts,
                 transactionViolations,
                 transactions,
+                isOffline,
                 reportNameValuePairs,
                 reportAttributes,
             );
@@ -228,7 +235,7 @@ function SidebarOrderedReportsContextProvider({
         return reportsToDisplay;
         // Rule disabled intentionally — triggering a re-render on currentReportsToDisplay would cause an infinite loop
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [getUpdatedReports, chatReports, derivedCurrentReportID, betas, transactionViolations, reportNameValuePairs, reportAttributes, reportsDrafts, clearCacheDummyCounter]);
+    }, [getUpdatedReports, chatReports, derivedCurrentReportID, betas, transactionViolations, reportNameValuePairs, reportAttributes, reportsDrafts, isOffline, clearCacheDummyCounter]);
 
     // Derive a stable boolean map indicating which reports have drafts.
     const hasDraftByReportIDRef = useRef<Record<string, boolean>>({});
