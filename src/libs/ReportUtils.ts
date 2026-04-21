@@ -4734,6 +4734,7 @@ function canEditMoneyRequest(
         return true;
     }
 
+    // TODO youssef: fix missing action's reportID in Onyx
     const moneyRequestReportID = originalMessage?.IOUReportID ?? reportAction?.reportID;
     const moneyRequestReport = report ?? getReportOrDraftReport(String(moneyRequestReportID));
 
@@ -5098,7 +5099,7 @@ function canEditReportAction(reportAction: OnyxInputOrEntry<ReportAction>, linke
     // canEditMoneyRequest has an admin/manager bypass for field-level edits (via canEditFieldOfMoneyRequest),
     // but that bypass should not allow the "Edit expense" action on finalized reports.
     if (isMoneyRequestAction(reportAction)) {
-        const moneyRequestReportID = getOriginalMessage(reportAction)?.IOUReportID;
+        const moneyRequestReportID = getOriginalMessage(reportAction)?.IOUReportID ?? reportAction?.reportID;
         if (moneyRequestReportID) {
             const moneyRequestReport = getReportOrDraftReport(String(moneyRequestReportID));
             if (isSettled(moneyRequestReport?.reportID) || isReportApproved({report: moneyRequestReport}) || isClosedReport(moneyRequestReport)) {
@@ -5425,17 +5426,6 @@ function getReportPreviewMessage(
         // This covers group chats where the last action is a track expense action
         const linkedTransaction = getLinkedTransaction(iouReportAction);
         if (isEmptyObject(linkedTransaction)) {
-            const originalMessage = getOriginalMessage(iouReportAction);
-            const amount = originalMessage?.amount;
-            const currency = originalMessage?.currency;
-            const comment = originalMessage?.comment;
-
-            if (amount && currency) {
-                const formattedAmount = convertToDisplayString(amount, currency);
-                // eslint-disable-next-line @typescript-eslint/no-deprecated
-                return translateLocal('iou.trackedAmount', formattedAmount, comment);
-            }
-
             return reportActionMessage;
         }
 
@@ -5469,11 +5459,11 @@ function getReportPreviewMessage(
         ? policyName
         : getDisplayNameForParticipant({accountID: report.managerID, shouldUseShortForm: !isPreviewMessageForParentChatReport, formatPhoneNumber: formatPhoneNumberPhoneUtils});
 
-    const formattedAmount = convertToDisplayString(totalAmount, report.currency);
+    const formattedTotalAmount = convertToDisplayString(totalAmount, report.currency);
 
     if (isReportApproved({report}) && isPaidGroupPolicy(report)) {
         // eslint-disable-next-line @typescript-eslint/no-deprecated
-        return translateLocal('iou.managerApprovedAmount', payerName ?? '', formattedAmount);
+        return translateLocal('iou.managerApprovedAmount', payerName ?? '', formattedTotalAmount);
     }
 
     const reportPolicy = allPolicies?.[`${ONYXKEYS.COLLECTION.POLICY}${report.policyID}`];
@@ -5520,7 +5510,7 @@ function getReportPreviewMessage(
                 translatePhraseKey = originalMessage?.payAsBusiness ? 'iou.settleInvoiceBusiness' : 'iou.settleInvoicePersonal';
                 const currentBankAccount = getBankAccountFromID(originalMessage?.bankAccountID);
                 // eslint-disable-next-line @typescript-eslint/no-deprecated
-                return translateLocal(translatePhraseKey, formattedAmount, currentBankAccount?.accountData?.accountNumber?.slice(-4) ?? '');
+                return translateLocal(translatePhraseKey, formattedTotalAmount, currentBankAccount?.accountData?.accountNumber?.slice(-4) ?? '');
             }
         }
 
@@ -5546,7 +5536,7 @@ function getReportPreviewMessage(
         }
         if (translatePhraseKey === 'iou.payerPaidAmount') {
             // eslint-disable-next-line @typescript-eslint/no-deprecated
-            return translateLocal(translatePhraseKey, formattedAmount, payerDisplayName ?? '');
+            return translateLocal(translatePhraseKey, formattedTotalAmount, payerDisplayName ?? '');
         }
     }
 
@@ -5557,13 +5547,13 @@ function getReportPreviewMessage(
     }
 
     const lastActorID = iouReportAction?.actorAccountID;
-    let amount = originalMessage?.amount;
-    let currency = originalMessage?.currency ? originalMessage?.currency : report.currency;
 
-    if (!isEmptyObject(linkedTransaction)) {
-        amount = getTransactionAmount(linkedTransaction, isExpenseReport(report));
-        currency = getCurrency(linkedTransaction);
+    if (isEmptyObject(linkedTransaction)) {
+        return reportActionMessage;
     }
+
+    const amount = getTransactionAmount(linkedTransaction, isExpenseReport(report));
+    const currency = getCurrency(linkedTransaction);
 
     if (isEmptyObject(linkedTransaction) && !isEmptyObject(iouReportAction)) {
         linkedTransaction = getLinkedTransaction(iouReportAction);
@@ -5591,12 +5581,12 @@ function getReportPreviewMessage(
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         return translateLocal(
             'iou.payerSpentAmount',
-            formattedAmount,
+            formattedTotalAmount,
             getDisplayNameForParticipant({accountID: report.ownerAccountID, formatPhoneNumber: formatPhoneNumberPhoneUtils}) ?? '',
         );
     }
     // eslint-disable-next-line @typescript-eslint/no-deprecated
-    return translateLocal('iou.payerOwesAmount', formattedAmount, payerName ?? '', comment);
+    return translateLocal('iou.payerOwesAmount', formattedTotalAmount, payerName ?? '', comment);
 }
 
 /**
@@ -7043,6 +7033,7 @@ function getPolicyChangeMessage(translate: LocalizedTranslate, action: ReportAct
  * @param isSettlingUp - Whether we are settling up an IOU
  * @param bankAccountID - Bank account ID
  * @param payAsBusiness - Whether the payment is made as a business
+ *TODO youssef check if this works well
  */
 function getIOUReportActionMessage(
     iouReportID: string,
@@ -7154,20 +7145,14 @@ function buildOptimisticIOUReportAction(params: BuildOptimisticIOUReportActionPa
         isOwnPolicyExpenseChat = false,
         created = DateUtils.getDBTime(),
         linkedExpenseReportAction,
-        isPersonalTrackingExpense = false,
         payAsBusiness,
         bankAccountID,
         reportActionID,
     } = params;
 
-    const IOUReportID = isPersonalTrackingExpense ? undefined : iouReportID || generateReportID();
-
     const originalMessage: ReportAction<typeof CONST.REPORT.ACTIONS.TYPE.IOU>['originalMessage'] = {
-        amount,
         comment,
-        currency,
         IOUTransactionID: transactionID,
-        IOUReportID,
         type,
         payAsBusiness,
         bankAccountID,
@@ -7176,26 +7161,18 @@ function buildOptimisticIOUReportAction(params: BuildOptimisticIOUReportActionPa
     const delegateAccountDetails = getPersonalDetailByEmail(delegateEmail);
 
     if (type === CONST.IOU.REPORT_ACTION_TYPE.PAY) {
+        delete originalMessage.comment;
+
         // In pay someone flow, we store amount, comment, currency in IOUDetails when type = pay
         if (isSendMoneyFlow) {
-            const keys = ['amount', 'comment', 'currency'] as const;
-            for (const key of keys) {
-                delete originalMessage[key];
-            }
             originalMessage.IOUDetails = {amount, comment, currency};
             originalMessage.paymentType = paymentType;
         } else {
             // In case of pay someone action, we dont store the comment
             // and there is no single transactionID to link the action to.
             delete originalMessage.IOUTransactionID;
-            delete originalMessage.comment;
             originalMessage.paymentType = paymentType;
         }
-    }
-
-    // IOUs of type split only exist in group DMs and those don't have an iouReport so we need to delete the IOUReportID key
-    if (type === CONST.IOU.REPORT_ACTION_TYPE.SPLIT) {
-        delete originalMessage.IOUReportID;
     }
 
     if (type !== CONST.IOU.REPORT_ACTION_TYPE.PAY) {
@@ -10624,6 +10601,7 @@ function getTaskAssigneeChatOnyxData(
 
 /**
  * Return iou report action display message
+    // TODO youssef
  */
 function getIOUReportActionDisplayMessage(
     translate: LocalizedTranslate,
