@@ -171,7 +171,7 @@ function ImportSpreadsheet({backTo, goTo, shouldForceReplaceNavigation = false, 
         } else {
             text = isSmallScreenWidth ? translate('spreadsheet.chooseSpreadsheet') : translate('spreadsheet.dragAndDrop');
         }
-        return `<div style="text-align: center">${text}</div>`;
+        return text;
     };
 
     const acceptableFileTypes = isImportingMultiLevelTags
@@ -195,7 +195,7 @@ function ImportSpreadsheet({backTo, goTo, shouldForceReplaceNavigation = false, 
                 {...panResponder.panHandlers}
             >
                 <Text style={[styles.textFileUpload, styles.mb1]}>{isImportingMultiLevelTags ? translate('spreadsheet.import') : translate('spreadsheet.upload')}</Text>
-                <View style={[styles.flexRow]}>
+                <View style={[styles.flexRow, styles.w100]}>
                     <RenderHTML html={getTextForImportModal()} />
                 </View>
             </View>
