@@ -46,7 +46,7 @@ Set up default or custom approval workflows to route expenses through one or mor
 
 1. Navigate to **Workspaces > [Workspace Name] > Workflows**.
 2. Under **Add approvals**, click **Add approval workflow**.
-3. Choose the member whose expenses should have a custom workflow.
+3. Choose the member whose expenses should have a custom workflow. If you select a member who is already in another custom approval workflow, a warning will appear letting you know that the member will be moved to this workflow. Click **Confirm** to proceed or **Cancel** to leave the member unselected.
 4. Click **Next**.
 5. Select the first approver for their expenses.
 6. (Optional) Set an additional approval when a report exceeds a specific amount:
@@ -83,7 +83,7 @@ You can update or remove approval workflows at any time as your team or process 
 
 ## Can an employee have more than one approval workflow applied to them?
 
-No. Each employee can only be assigned one approval workflow per workspace.
+No. Each employee can only be assigned one approval workflow per workspace. If you try to add a member who is already in another custom workflow, a warning will appear letting you know they will be moved to the new workflow.
 
 ## How can I assign custom approval workflows to specific members?
 
