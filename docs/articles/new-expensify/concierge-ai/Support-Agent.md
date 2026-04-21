@@ -1,7 +1,7 @@
 ---
 title: Support Agent
 description: Learn how the Concierge Support Agent can answer questions, troubleshoot issues, and connect you to real-time help in Expensify.
-keywords: Concierge Support, Support Agent, Expensify help, AI support, troubleshoot Expensify, how to contact Concierge, onboarding call, Expensify chat support
+keywords: Concierge Support, Support Agent, Expensify help, AI support, troubleshoot Expensify, how to contact Concierge, onboarding call, Expensify chat support, assisted by, human agent, subscript avatar
 order: 3
 ---
 
@@ -45,6 +45,16 @@ Yes! Just ask. If your question is complex, unclear, or you prefer human help, C
 
 Expensify offers 24/7 human support via chat.
 
+## How to tell when a human agent is assisting through Concierge
+
+When a human support agent responds through Concierge, you'll see visual indicators on the message:
+
+- **Subscript avatar**: The message shows Concierge's avatar with a smaller overlay of the human agent's avatar.
+- **"assisted by" label**: Below the message header, you'll see "assisted by [Agent Name]" (or "assisted by a human support agent" if the agent's name isn't available).
+- **Separate message grouping**: Messages assisted by a human agent appear separately from standard Concierge messages, each with their own avatar and header.
+
+You stay in the same Concierge chat thread throughout—there's no need to switch conversations when a human joins.
+
 ## Can I speak with someone on the phone?
 
 If you're working with an onboarding specialist or account manager, Concierge can help schedule a call. Just ask to set one up.
@@ -63,6 +73,10 @@ Providing more detail upfront leads to quicker answers. Include:
 - Expense description or merchant
 - Exact error message (if any)
 - What you were doing when the issue occurred
+
+## What does "assisted by" mean on a Concierge message?
+
+It means a real human support agent composed that particular response on behalf of Concierge. The agent’s name (or "a human support agent") appears below the message header, and their avatar appears as a small overlay on the Concierge avatar.
 
 ## Can Concierge update my Workspace settings?
 
