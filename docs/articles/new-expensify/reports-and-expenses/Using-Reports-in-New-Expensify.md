@@ -121,7 +121,7 @@ Below are some example queries you can use depending on your role:
 # How to save a search
 
 1. Run a search with filters or search commands.
-2. Click **Filters**, then select **Save report**.
+2. Click **Save search**.
 3. Enter a name, or use the suggested one.
 
 To view saved searches:
@@ -129,7 +129,16 @@ To view saved searches:
 - **Web:** Go to the **Saved** section in the left-hand sidebar.
 - **Mobile:** Tap the **Type** dropdown at the top and select **Saved**.
 
-To rename or delete a saved search, click the three dots next to it.
+## How to rename a saved search
+
+You can rename a saved search in two ways:
+
+- While viewing a saved search, click **Save search** and enter a new name. The saved search updates with the new name.
+- Click the three dots **(⋮)** next to a saved search and select **Rename**.
+
+## How to delete a saved search
+
+Click the three dots **(⋮)** next to a saved search and select **Delete**.
 
 ---
 
