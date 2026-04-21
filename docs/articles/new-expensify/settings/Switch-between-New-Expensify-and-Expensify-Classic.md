@@ -30,6 +30,8 @@ Any member can switch between views, unless a **Workspace Admin** or **Domain Ad
 2. Tap **Troubleshoot**.
 3. Tap **Switch to Expensify Classic**.
 
+**Note:** If you have an active GPS distance trip in progress, you'll see a warning asking you to stop the trip before switching. You can choose to stop the trip and switch, or cancel and keep tracking.
+
 ## From Classic Expensify to New Expensify
 
 ### On web:

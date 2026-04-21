@@ -153,6 +153,10 @@ The GPS receipt shows a map of your actual route driven, along with the total di
 
 No. GPS tracking requires the iOS or Android mobile app because it uses your device's location services. On web or desktop, you'll see a prompt to download the mobile app when selecting GPS. You can still use map-based or manual distance entry on any platform.
 
+## What happens if I try to switch to Expensify Classic during a GPS trip?
+
+If you have an active GPS trip and try to switch to Expensify Classic, a warning will appear asking you to stop the trip first. You can stop the trip and switch, or cancel to keep tracking. This prevents you from losing your GPS trip progress.
+
 ## Can my odometer images be SmartScanned?
 
 SmartScan does not read odometer readings. You will need to manually enter the reading and upload supporting images.
