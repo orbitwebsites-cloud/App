@@ -118,11 +118,10 @@ function ReportActionItemMessage({action, displayAsGroup, reportID, style, isHid
         );
     }
 
-    // TODO youssef check if this needs to be cleaned up (iou actions are only dispalyed for split & track expenses, where is iouMessage used?)
     let iouMessage: string | undefined;
     if (isIOUReport) {
         const originalMessage = action.actionName === CONST.REPORT.ACTIONS.TYPE.IOU ? getOriginalMessage(action) : null;
-        const iouReportID = originalMessage?.IOUReportID;
+        const iouReportID = originalMessage?.IOUReportID ?? action.reportID;
         if (iouReportID) {
             iouMessage = getIOUReportActionDisplayMessage(translate, action, transaction, report, bankAccountList);
         }

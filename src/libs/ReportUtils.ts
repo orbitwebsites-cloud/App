@@ -4743,7 +4743,6 @@ function canEditMoneyRequest(
         return true;
     }
 
-    // TODO youssef: fix missing action's reportID in Onyx
     const moneyRequestReportID = originalMessage?.IOUReportID ?? reportAction?.reportID;
     const moneyRequestReport = report ?? getReportOrDraftReport(String(moneyRequestReportID));
 
@@ -7060,7 +7059,6 @@ function getPolicyChangeMessage(translate: LocalizedTranslate, action: ReportAct
  * @param isSettlingUp - Whether we are settling up an IOU
  * @param bankAccountID - Bank account ID
  * @param payAsBusiness - Whether the payment is made as a business
- *TODO youssef check if this works well
  */
 function getIOUReportActionMessage(
     iouReportID: string,
