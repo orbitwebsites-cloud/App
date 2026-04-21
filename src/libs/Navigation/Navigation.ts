@@ -757,7 +757,7 @@ function getTopmostSuperWideRHPReportID(state: NavigationState = navigationRef.g
 function dismissModal({ref = navigationRef, afterTransition, waitForTransition}: {ref?: NavigationRef; afterTransition?: () => void; waitForTransition?: boolean} = {}) {
     clearSelectedTextIfComposerBlurred();
     const runImmediately = !waitForTransition;
-    const performDismiss = () => {
+    isNavigationReady().then(() => {
         TransitionTracker.runAfterTransitions({
             callback: () => {
                 ref.dispatch({type: CONST.NAVIGATION.ACTION_TYPE.DISMISS_MODAL});
@@ -768,13 +768,7 @@ function dismissModal({ref = navigationRef, afterTransition, waitForTransition}:
             },
             runImmediately,
         });
-    };
-
-    if (ref.isReady()) {
-        performDismiss();
-    } else {
-        isNavigationReady().then(performDismiss);
-    }
+    });
 }
 
 /**
@@ -788,7 +782,7 @@ const dismissModalWithReport = (
     ref = navigationRef,
     options?: {onBeforeNavigate?: (willOpenReport: boolean) => void},
 ) => {
-    const dismissAndOpenReport = () => {
+    isNavigationReady().then(() => {
         const topmostSuperWideRHPReportID = getTopmostSuperWideRHPReportID();
         let areReportsIDsDefined = !!topmostSuperWideRHPReportID && !!reportID;
 
@@ -818,13 +812,7 @@ const dismissModalWithReport = (
                 navigate(reportRoute);
             },
         });
-    };
-
-    if (ref.isReady()) {
-        dismissAndOpenReport();
-    } else {
-        isNavigationReady().then(dismissAndOpenReport);
-    }
+    });
 };
 
 function popRootToTop() {
@@ -968,7 +956,7 @@ function dismissToSuperWideRHP(options: {afterTransition?: () => void} = {}) {
  *             useLinking detects the stale Home+RHP entry and replaces it with a Search
  *             push, yielding correct browser history [Home, Search].
  */
-function revealRouteBeforeDismissingModal(route: Route, options?: {afterTransition?: () => void}) {
+function revealRouteBeforeDismissingModal(route: Route) {
     if (getIsNarrowLayout()) {
         Log.warn('[Navigation] revealRouteBeforeDismissingModal should only be used on wide layouts.');
         return;
@@ -984,11 +972,8 @@ function revealRouteBeforeDismissingModal(route: Route, options?: {afterTransiti
             type: CONST.NAVIGATION.ACTION_TYPE.REPLACE_FULLSCREEN_UNDER_RHP,
             payload: {route},
         });
-        // Nested rAF: the first frame commits the route insertion, the second
-        // frame starts the dismiss. This ensures React processes the two dispatches
-        // in separate renders so the dismiss animation is preserved.
         requestAnimationFrame(() => {
-            dismissModal({afterTransition: options?.afterTransition});
+            dismissModal();
         });
     });
 }

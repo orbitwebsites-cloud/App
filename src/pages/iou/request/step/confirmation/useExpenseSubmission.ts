@@ -384,7 +384,6 @@ function useExpenseSubmission(params: UseExpenseSubmissionParams) {
                 currentUserAccountIDParam: currentUserPersonalDetails.accountID,
                 currentUserEmailParam: currentUserPersonalDetails.login ?? '',
                 quickAction,
-                shouldHandleNavigation: shouldHandleNav,
             });
         } else {
             const isExpenseReport = isMoneyRequestReport(report);
@@ -438,7 +437,6 @@ function useExpenseSubmission(params: UseExpenseSubmissionParams) {
                 betas,
                 personalDetails,
                 optimisticChatReportID,
-                shouldHandleNavigation: shouldHandleNav,
             });
             if (shouldHandleNav && result && activeReportID) {
                 navigateAfterExpenseCreate({
@@ -618,9 +616,9 @@ function useExpenseSubmission(params: UseExpenseSubmissionParams) {
 
         const currentTransactionReceiptFile = transaction?.transactionID ? receiptFiles[transaction.transactionID] : undefined;
 
-        // Split (startSplitBill, splitBill, splitBillAndOpenReport) flows handle their own
-        // navigation internally and don't participate in the dismiss-modal fast path.
-        // shouldHandleNavigation is not threaded through to them.
+        // Split (startSplitBill, splitBill, splitBillAndOpenReport) and invoice (sendInvoice)
+        // flows handle their own navigation internally and don't participate in the
+        // dismiss-modal fast path. shouldHandleNavigation is not threaded through to them.
         if (iouType === CONST.IOU.TYPE.SPLIT && Object.values(receiptFiles).filter((receipt) => !!receipt).length) {
             const currentUserLogin = currentUserPersonalDetails.login;
             if (currentUserLogin) {
@@ -750,7 +748,6 @@ function useExpenseSubmission(params: UseExpenseSubmissionParams) {
                 isFromGlobalCreate: transaction?.isFromFloatingActionButton ?? transaction?.isFromGlobalCreate,
                 policyRecentlyUsedTags,
                 senderPolicyTags: senderWorkspacePolicyTags ?? {},
-                shouldHandleNavigation,
             });
             markSubmitExpenseEnd();
             return;
