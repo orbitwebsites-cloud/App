@@ -32,7 +32,7 @@ On any expense submitted on a report, the approver can:
 
 ## How to review and approve a report
 
-When a report is submitted to you for approval it will appear in the **For you** section on **Home**, and on **Reports** in the **Approve** section. 
+When a report is submitted to you for approval it will appear in the **For you** section on **Home**, and on **Spend** in the **Approve** section. 
 
 To review and approve a report submitted to you for approval: 
 
@@ -69,7 +69,7 @@ Workspace admins can bypass the approval workflow on a report to final approve i
 
 ## How to hold an expense
 
-1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Reports > Expenses**.
+1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Spend > Expenses**.
 2. Locate the expense you want to hold. 
 3. Click the expense to open it. 
 4. Click **More** at the top of the expense.
@@ -81,7 +81,7 @@ To take an expense off hold, follow the same steps but select **Unhold**.
 
 ## How to unapprove a report
 
-1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Reports > Reports**.
+1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Spend > Reports**.
 2. Locate the Approved report you want to unapprove. 
 3. Click the report to open it. 
 4. Click **More** at the top of the report. 
@@ -97,7 +97,7 @@ Unapproving a report returns it to the Outstanding state. The last approver will
 
 As the assigned approver, you can reject an entire expense report to return it to the submitter or a previous approver while keeping the report's expense grouping intact.
 
-1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Reports > Approve**.
+1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Spend > Approve**.
 2. Locate the Outstanding report you want to reject.
 3. Click the report to open it. 
 4. Click **More** at the top of the report. 
@@ -117,7 +117,7 @@ As the assigned approver, you can reject an entire expense report to return it t
 
 ## How to reject an expense 
 
-1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Reports > Expenses**.
+1. In the navigation tabs (on the left on web, and at the bottom on mobile), go to **Spend > Expenses**.
 2. Locate the Outstanding expense you want to reject.
 3. Click the expense to open it. 
 4. Click **More** at the top of the expense. 

@@ -6,22 +6,22 @@ keywords: [Reports, New Expensify, report filters, search commands, custom colum
 
 <div id="new-expensify" markdown="1">
 
-Use the **Reports** tab in New Expensify to view and manage expenses, invoices, trips, chats, and more. You can search with keywords, apply filters, customize columns, and save searches to reuse later.
+Use the **Spend** tab in New Expensify to view and manage expenses, invoices, trips, chats, and more. You can search with keywords, apply filters, customize columns, and save searches to reuse later.
 
 ---
 
 # Where to find Reports in New Expensify
 
-- **Web:** Go to the **Reports** tab in the navigation on the left.
-- **Mobile:** Tap **Reports** in the navigation tabs at the bottom.
+- **Web:** Go to the **Spend** tab in the navigation on the left.
+- **Mobile:** Tap **Spend** in the navigation tabs at the bottom.
 
-You can also open **Reports** by clicking the magnifying glass icon in the top-right corner.
+You can also open **Spend** by clicking the magnifying glass icon in the top-right corner.
 
 ---
 
-# What you can view in Reports
+# What you can view in Spend
 
-Reports includes the following types of data:
+The Spend tab includes the following types of data:
 
 - **Expenses**
 - **Expense Reports**
@@ -34,11 +34,11 @@ Each type has its own filters and search options.
 
 ---
 
-# How to filter Reports
+# How to filter reports
 
 Filter reports by type, status, category, or date to find specific information.
 
-1. Go to the **Reports** tab.
+1. Go to the **Spend** tab.
 2. Enter a keyword in the search bar (optional). 
 3. Choose a type tab - **Expense**, **Expense Report**, **Chat**, **Invoice**, **Trip**, or **Task**.
 4. Click **Filters**.
@@ -48,16 +48,16 @@ Filter reports by type, status, category, or date to find specific information.
    - **From:** You, or someone else
 6. Click **View Results** to see the filtered results.
 
-![Reports page showing available report filtering options]({{site.url}}/assets/images/Filter-reports.png){:width="100%"}
+![Spend page showing available report filtering options]({{site.url}}/assets/images/Filter-reports.png){:width="100%"}
 ---
 
-## How to customize the Reports column view 
+## How to customize the column view 
 
 On the web, you can customize which columns appear when viewing **Reports** or **Expenses**. This helps surface key details and tailor the view to your workflow.
 
 To customize columns:
 
-1. Go to the **Reports** tab on the left (web only).
+1. Go to the **Spend** tab on the left (web only).
 2. Run a search or apply filters if needed.
 3. Click the **Columns** icon (next to **Filters**).
 4. Use the checkboxes to show or hide specific columns.
@@ -72,7 +72,7 @@ You can choose from a wide range of columns, including:
 - **Workspace** – The workspace the report belongs to
 - **Action** – Shows available actions like approve or reject
 
-To view the full list of available columns, click the **Columns** icon in the **Reports** tab.
+To view the full list of available columns, click the **Columns** icon in the **Spend** tab.
 
 ---
 
@@ -88,7 +88,7 @@ To group expenses:
 
 Your selected layout will be remembered and applied to other reports you view.
 
-# How to use Reports search query commands
+# How to use search query commands
 
 Use search commands in the search bar to run advanced queries based on specific fields. 
 
@@ -184,12 +184,12 @@ Filters are enabled incrementally. If a filter isn’t visible, ensure that your
 Expensify ensures cross-platform consistency where possible. However, certain features (like customizable columns) are only available on web for larger screen layouts.
 
 ## How do I find unsubmitted reports?
-1. Go to the **Reports** tab.
+1. Go to the **Spend** tab.
 2. Select **Expense** from the Type filter.
 3. Apply the **Draft** filter to view all unsubmitted reports.
 
 ## Can I change which columns appear in my reports?
-Yes! You can choose which columns to show or hide in the **Reports** and **Expenses** views on web. Use the **Columns** icon to customize your table layout.
+Yes! You can choose which columns to show or hide in the **Reports** and **Expenses** views on web under the **Spend** tab. Use the **Columns** icon to customize your table layout.
 
 ## Can I reorder the columns?
 Absolutely. Just drag and drop the columns in the order you prefer within the **Columns** settings panel.

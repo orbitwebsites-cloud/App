@@ -11,7 +11,7 @@ Using the search function on the reports page helps you quickly take action on r
 
 # Search on the Reports Page
 
-**Navigation: In the navigation tabs (on the left on web, and at the bottom on mobile), select Reports > Expense Reports > To-do**.
+**Navigation: In the navigation tabs (on the left on web, and at the bottom on mobile), select Spend > Expense Reports > To-do**.
 
 The **To-do** section surfaces key report actions so you can:
 - Submit expenses waiting on you
@@ -44,7 +44,7 @@ Admins may also see:
 # Member Views and Access
 
 ## All members
-- Can access **Reports**, **Expenses**, and **Chats (Inbox tab)** from the **Explore** section.
+- Can access **Reports**, **Expenses**, and **Chats (Inbox tab)** from the **Explore** section on the **Spend** page.
 - If no reports exist, the To-do section will prompt you to create one.
 
 ## Employees (Submitters)
