@@ -1,12 +1,12 @@
-import React, {useEffect, useState} from 'react';
+import React, {useState} from 'react';
 import {View} from 'react-native';
 import FormHelpMessage from '@components/FormHelpMessage';
+import FullScreenLoadingIndicator from '@components/FullscreenLoadingIndicator';
 import HeaderWithBackButton from '@components/HeaderWithBackButton';
 import ScreenWrapper from '@components/ScreenWrapper';
 import SelectionList from '@components/SelectionList';
 import RadioListItem from '@components/SelectionList/ListItem/RadioListItem';
 import Text from '@components/Text';
-import {useCurrencyListState} from '@hooks/useCurrencyList';
 import useCurrentUserPersonalDetails from '@hooks/useCurrentUserPersonalDetails';
 import useDebouncedState from '@hooks/useDebouncedState';
 import useLocalize from '@hooks/useLocalize';
@@ -21,26 +21,22 @@ import {clearAddNewPersonalCardFlow, setAddNewPersonalCardStepAndData} from '@us
 import CONST from '@src/CONST';
 import type {TranslationPaths} from '@src/languages/types';
 import ONYXKEYS from '@src/ONYXKEYS';
+import isLoadingOnyxValue from '@src/types/utils/isLoadingOnyxValue';
 
 function SelectCountryStep({disableAutoFocus}: {disableAutoFocus?: boolean}) {
     const {translate, localeCompare} = useLocalize();
     const styles = useThemeStyles();
-    const {currencyList} = useCurrencyListState();
-    const [countryByIp] = useOnyx(ONYXKEYS.COUNTRY);
+    const [currencyList, currencyListMeta] = useOnyx(ONYXKEYS.CURRENCY_LIST);
+    const [countryByIp, countryByIpMeta] = useOnyx(ONYXKEYS.COUNTRY);
     const [addNewPersonalCard] = useOnyx(ONYXKEYS.ADD_NEW_PERSONAL_CARD);
     const currentUserPersonalDetails = useCurrentUserPersonalDetails();
     const currency = currentUserPersonalDetails?.localCurrencyCode ?? CONST.CURRENCY.USD;
     const [searchValue, debouncedSearchValue, setSearchValue] = useDebouncedState('');
+    const isLoading = isLoadingOnyxValue(currencyListMeta, countryByIpMeta);
+    const reasonAttributes = {context: 'SelectCountryStep', isLoading};
 
-    const getCountry = () => {
-        if (addNewPersonalCard?.data?.selectedCountry) {
-            return addNewPersonalCard.data.selectedCountry;
-        }
-
-        return getPlaidCountry(currency, currencyList, countryByIp);
-    };
-
-    const [currentCountry, setCurrentCountry] = useState<string | undefined>(getCountry);
+    const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+    const currentCountry = selectedCountry ?? addNewPersonalCard?.data?.selectedCountry ?? getPlaidCountry(currency, currencyList, countryByIp);
     const [hasError, setHasError] = useState(false);
     const isUS = currentCountry === CONST.COUNTRY.US;
 
@@ -61,16 +57,12 @@ function SelectCountryStep({disableAutoFocus}: {disableAutoFocus?: boolean}) {
         }
     };
 
-    useEffect(() => {
-        setCurrentCountry(getCountry());
-    }, [getCountry]);
-
     const handleBackButtonPress = () => {
         Navigation.goBack();
     };
 
     const onSelectionChange = (country: Option) => {
-        setCurrentCountry(country.value);
+        setSelectedCountry(country.value ?? null);
     };
 
     const getCountries = () =>
@@ -89,6 +81,10 @@ function SelectCountryStep({disableAutoFocus}: {disableAutoFocus?: boolean}) {
 
     const searchResults = searchOptions(debouncedSearchValue, countries);
     const headerMessage = debouncedSearchValue.trim() && !searchResults.length ? translate('common.noResultsFound') : '';
+
+    if (isLoading) {
+        return <FullScreenLoadingIndicator reasonAttributes={reasonAttributes} />;
+    }
 
     return (
         <ScreenWrapper
