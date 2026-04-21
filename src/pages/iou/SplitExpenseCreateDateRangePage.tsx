@@ -28,9 +28,9 @@ import type SCREENS from '@src/SCREENS';
 import INPUT_IDS from '@src/types/form/SplitExpenseEditDateForm';
 import {isEmptyObject} from '@src/types/utils/EmptyObject';
 
-type SplitExpenseCreateDateRagePageProps = PlatformStackScreenProps<SplitExpenseParamList, typeof SCREENS.MONEY_REQUEST.SPLIT_EXPENSE_CREATE_DATE_RANGE>;
+type SplitExpenseCreateDateRangePageProps = PlatformStackScreenProps<SplitExpenseParamList, typeof SCREENS.MONEY_REQUEST.SPLIT_EXPENSE_CREATE_DATE_RANGE>;
 
-function SplitExpenseCreateDateRagePage({route}: SplitExpenseCreateDateRagePageProps) {
+function SplitExpenseCreateDateRangePage({route}: SplitExpenseCreateDateRangePageProps) {
     const styles = useThemeStyles();
     const {translate} = useLocalize();
     const {currentSearchResults} = useSearchStateContext();
@@ -89,7 +89,7 @@ function SplitExpenseCreateDateRagePage({route}: SplitExpenseCreateDateRagePageP
     };
 
     return (
-        <ScreenWrapper testID="SplitExpenseCreateDateRagePage">
+        <ScreenWrapper testID="SplitExpenseCreateDateRangePage">
             <FullPageNotFoundView shouldShow={!reportID || isEmptyObject(draftTransaction) || !isSplitAvailable}>
                 <View style={[styles.flex1]}>
                     <HeaderWithBackButton
@@ -129,4 +129,4 @@ function SplitExpenseCreateDateRagePage({route}: SplitExpenseCreateDateRagePageP
     );
 }
 
-export default SplitExpenseCreateDateRagePage;
+export default SplitExpenseCreateDateRangePage;
