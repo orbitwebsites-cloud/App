@@ -56,6 +56,8 @@ You can select multiple eligible expenses and duplicate them all in one action.
 3. Select two or more cash, distance, or per diem expenses that you created.
 4. Tap **Selected**, then **Duplicate expenses**.
 
+You can duplicate up to 50 expenses at a time. If you select more than 50, Expensify will display a message asking you to select fewer expenses and try again.
+
 Each selected expense is duplicated individually. The same rules apply as for single duplication — card expenses, scanning expenses, per diem expenses without dates, and expenses you did not submit are excluded from selection.
 
 <!-- SCREENSHOT:
@@ -91,6 +93,10 @@ No. Expenses from company cards or Expensify Cards cannot be duplicated. Only ca
 ## Does the duplicated expense include the receipt image?
 
 No. Receipt images are not copied to the duplicate expense. You will need to attach a new receipt if one is required.
+
+## Is there a limit on how many expenses I can duplicate at once?
+
+Yes. You can duplicate up to 50 expenses at a time. If you select more than 50, a message will appear explaining the limit. Deselect some expenses so that 50 or fewer are selected, then try again.
 
 ## Why is Duplicate not showing in the menu?
 
