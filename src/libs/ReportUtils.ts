@@ -5442,6 +5442,17 @@ function getReportPreviewMessage(
         // This covers group chats where the last action is a track expense action
         const linkedTransaction = getLinkedTransaction(iouReportAction);
         if (isEmptyObject(linkedTransaction)) {
+            const originalMessage = getOriginalMessage(iouReportAction);
+            const amount = originalMessage?.amount;
+            const currency = originalMessage?.currency;
+            const comment = originalMessage?.comment;
+
+            if (amount && currency) {
+                const formattedAmount = convertToDisplayString(amount, currency);
+                // eslint-disable-next-line @typescript-eslint/no-deprecated
+                return translateLocal('iou.trackedAmount', formattedAmount, comment);
+            }
+
             return reportActionMessage;
         }
 
@@ -5475,11 +5486,11 @@ function getReportPreviewMessage(
         ? policyName
         : getDisplayNameForParticipant({accountID: report.managerID, shouldUseShortForm: !isPreviewMessageForParentChatReport, formatPhoneNumber: formatPhoneNumberPhoneUtils});
 
-    const formattedTotalAmount = convertToDisplayString(totalAmount, report.currency);
+    const formattedAmount = convertToDisplayString(totalAmount, report.currency);
 
     if (isReportApproved({report}) && isPaidGroupPolicy(report)) {
         // eslint-disable-next-line @typescript-eslint/no-deprecated
-        return translateLocal('iou.managerApprovedAmount', payerName ?? '', formattedTotalAmount);
+        return translateLocal('iou.managerApprovedAmount', payerName ?? '', formattedAmount);
     }
 
     const reportPolicy = allPolicies?.[`${ONYXKEYS.COLLECTION.POLICY}${report.policyID}`];
@@ -5526,7 +5537,7 @@ function getReportPreviewMessage(
                 translatePhraseKey = originalMessage?.payAsBusiness ? 'iou.settleInvoiceBusiness' : 'iou.settleInvoicePersonal';
                 const currentBankAccount = getBankAccountFromID(originalMessage?.bankAccountID);
                 // eslint-disable-next-line @typescript-eslint/no-deprecated
-                return translateLocal(translatePhraseKey, formattedTotalAmount, currentBankAccount?.accountData?.accountNumber?.slice(-4) ?? '');
+                return translateLocal(translatePhraseKey, formattedAmount, currentBankAccount?.accountData?.accountNumber?.slice(-4) ?? '');
             }
         }
 
@@ -5552,7 +5563,7 @@ function getReportPreviewMessage(
         }
         if (translatePhraseKey === 'iou.payerPaidAmount') {
             // eslint-disable-next-line @typescript-eslint/no-deprecated
-            return translateLocal(translatePhraseKey, formattedTotalAmount, payerDisplayName ?? '');
+            return translateLocal(translatePhraseKey, formattedAmount, payerDisplayName ?? '');
         }
     }
 
@@ -5563,13 +5574,13 @@ function getReportPreviewMessage(
     }
 
     const lastActorID = iouReportAction?.actorAccountID;
+    let amount = originalMessage?.amount;
+    let currency = originalMessage?.currency ? originalMessage?.currency : report.currency;
 
-    if (isEmptyObject(linkedTransaction)) {
-        return reportActionMessage;
+    if (!isEmptyObject(linkedTransaction)) {
+        amount = getTransactionAmount(linkedTransaction, isExpenseReport(report));
+        currency = getCurrency(linkedTransaction);
     }
-
-    const amount = getTransactionAmount(linkedTransaction, isExpenseReport(report));
-    const currency = getCurrency(linkedTransaction);
 
     if (isEmptyObject(linkedTransaction) && !isEmptyObject(iouReportAction)) {
         linkedTransaction = getLinkedTransaction(iouReportAction);
@@ -5597,12 +5608,12 @@ function getReportPreviewMessage(
         // eslint-disable-next-line @typescript-eslint/no-deprecated
         return translateLocal(
             'iou.payerSpentAmount',
-            formattedTotalAmount,
+            formattedAmount,
             getDisplayNameForParticipant({accountID: report.ownerAccountID, formatPhoneNumber: formatPhoneNumberPhoneUtils}) ?? '',
         );
     }
     // eslint-disable-next-line @typescript-eslint/no-deprecated
-    return translateLocal('iou.payerOwesAmount', formattedTotalAmount, payerName ?? '', comment);
+    return translateLocal('iou.payerOwesAmount', formattedAmount, payerName ?? '', comment);
 }
 
 /**
@@ -7161,12 +7172,16 @@ function buildOptimisticIOUReportAction(params: BuildOptimisticIOUReportActionPa
         isOwnPolicyExpenseChat = false,
         created = DateUtils.getDBTime(),
         linkedExpenseReportAction,
+        isPersonalTrackingExpense = false,
         payAsBusiness,
         bankAccountID,
         reportActionID,
     } = params;
 
+    const IOUReportID = isPersonalTrackingExpense ? undefined : iouReportID || generateReportID();
+
     const originalMessage: ReportAction<typeof CONST.REPORT.ACTIONS.TYPE.IOU>['originalMessage'] = {
+        IOUReportID,
         comment,
         IOUTransactionID: transactionID,
         type,
