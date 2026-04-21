@@ -38,6 +38,7 @@ import variables from '@styles/variables';
 import CONST from '@src/CONST';
 import {isEmptyObject} from '@src/types/utils/EmptyObject';
 import LHNAvatar from './LHNAvatar';
+import {useLHNTooltipContext} from './LHNTooltipContext';
 import type {OptionRowLHNProps} from './types';
 
 function OptionRowLHN({
@@ -47,15 +48,9 @@ function OptionRowLHN({
     onSelectRow = () => {},
     optionItem,
     viewMode = 'default',
-    onboardingPurpose,
-    onboarding,
-    isFullscreenVisible,
-    isReportsSplitNavigatorLast,
     style,
     onLayout = () => {},
     hasDraftComment,
-    shouldShowRBRorGBRTooltip,
-    isScreenFocused = false,
     testID,
     conciergeReportID,
     avatarSize,
@@ -67,6 +62,9 @@ function OptionRowLHN({
     const StyleUtils = useStyleUtils();
     const {shouldUseNarrowLayout} = useResponsiveLayout();
     const expensifyIcons = useMemoizedLazyExpensifyIcons(['Pencil', 'DotIndicator', 'Pin']);
+
+    const {onboardingPurpose, onboarding, isFullscreenVisible, firstReportIDWithGBRorRBR, isScreenFocused, isReportsSplitNavigatorLast} = useLHNTooltipContext();
+    const shouldShowRBRorGBRTooltip = firstReportIDWithGBRorRBR === reportID;
 
     const personalDetails = usePersonalDetails();
     const session = useSession();
@@ -408,7 +406,6 @@ function OptionRowLHN({
                                                         <Badge
                                                             text={actionBadgeText}
                                                             error
-                                                            isCondensed
                                                             isStrong
                                                         />
                                                     ) : (
@@ -428,7 +425,6 @@ function OptionRowLHN({
                                                 <Badge
                                                     text={actionBadgeText}
                                                     success
-                                                    isCondensed
                                                     isStrong
                                                 />
                                             ) : (
@@ -449,31 +445,25 @@ function OptionRowLHN({
                                                     testID="Pencil Icon"
                                                     fill={theme.icon}
                                                     src={expensifyIcons.Pencil}
+                                                    width={variables.iconSizeSmall}
+                                                    height={variables.iconSizeSmall}
                                                 />
                                             </View>
                                         )}
-                                        {!brickRoadIndicator &&
-                                            !!optionItem.isPinned &&
-                                            (isProduction ? (
-                                                <View
-                                                    style={styles.ml2}
-                                                    accessibilityLabel={translate('sidebarScreen.chatPinned')}
-                                                >
-                                                    <Icon
-                                                        testID="Pin Icon"
-                                                        fill={theme.icon}
-                                                        src={expensifyIcons.Pin}
-                                                    />
-                                                </View>
-                                            ) : (
-                                                <Badge
-                                                    icon={expensifyIcons.Pin}
-                                                    text=""
-                                                    badgeStyles={isOptionFocused && styles.badgeDefaultActive}
-                                                    isCondensed
-                                                    isStrong
+                                        {!brickRoadIndicator && !!optionItem.isPinned && (
+                                            <View
+                                                style={styles.ml2}
+                                                accessibilityLabel={translate('sidebarScreen.chatPinned')}
+                                            >
+                                                <Icon
+                                                    testID="Pin Icon"
+                                                    fill={theme.icon}
+                                                    src={expensifyIcons.Pin}
+                                                    width={variables.iconSizeSmall}
+                                                    height={variables.iconSizeSmall}
                                                 />
-                                            ))}
+                                            </View>
+                                        )}
                                     </View>
                                 </PressableWithSecondaryInteraction>
                             );
