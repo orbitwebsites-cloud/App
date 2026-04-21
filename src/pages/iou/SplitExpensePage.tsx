@@ -52,6 +52,7 @@ import {getReportOrDraftReport, getTransactionDetails, isReportApproved, isSettl
 import type {TransactionDetails} from '@libs/ReportUtils';
 import {getActiveGroupSearchHashes} from '@libs/SearchUIUtils';
 import {computeSplitSaveErrorMessage, computeSplitWarningMessage} from '@libs/SplitExpenseUtils';
+import stripSplitTabSuffix from '@libs/stripSplitTabSuffix';
 import type {SkeletonSpanReasonAttributes} from '@libs/telemetry/useSkeletonSpan';
 import type {TranslationPathOrText} from '@libs/TransactionPreviewUtils';
 import {getChildTransactions, getExpenseTypeTranslationKey, getTransactionType, isDistanceRequest, isManagedCardTransaction, isPerDiemRequest} from '@libs/TransactionUtils';
@@ -429,7 +430,8 @@ function SplitExpensePage({route}: SplitExpensePageProps) {
     const splitDatesTitle = DateUtils.getFormattedSplitDateRange(translate, splitStartDate, splitEndDate);
 
     const handleDatePress = () => {
-        Navigation.navigate(ROUTES.SPLIT_EXPENSE_CREATE_DATE_RANGE.getRoute(reportID, transactionID, Navigation.getActiveRoute()));
+        const backTo = stripSplitTabSuffix(Navigation.getActiveRoute());
+        Navigation.navigate(ROUTES.SPLIT_EXPENSE_CREATE_DATE_RANGE.getRoute(reportID, transactionID, backTo));
     };
 
     const headerDateContent = (
