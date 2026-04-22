@@ -11,7 +11,7 @@ import type {SearchQueryJSON} from '@components/Search/types';
 import type handleWalletStatementNavigationDefault from '@components/WalletStatementModal/walletNavigationUtils';
 import useAncestors from '@hooks/useAncestors';
 import markAllMessagesAsRead from '@libs/actions/Report/MarkAllMessageAsRead';
-import {CONCIERGE_RESPONSE_DELAY_MS, resolveSuggestedFollowup} from '@libs/actions/Report/SuggestedFollowup';
+import {applyPendingConciergeAction, CONCIERGE_RESPONSE_DELAY_MS, discardPendingConciergeAction, resolveSuggestedFollowup} from '@libs/actions/Report/SuggestedFollowup';
 import {getOnboardingMessages} from '@libs/actions/Welcome/OnboardingFlow';
 import {WRITE_COMMANDS} from '@libs/API/types';
 import HttpUtils from '@libs/HttpUtils';
@@ -5481,6 +5481,60 @@ describe('actions/Report', () => {
             // (agentZeroProcessingIndicator) is the single source of truth for this signal.
             const typingStatus = await getOnyxValue(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}` as const);
             expect(typingStatus?.[CONST.ACCOUNT_ID.CONCIERGE]).toBeFalsy();
+        });
+
+        // Regression test for https://github.com/Expensify/App/issues/626937 — over-fix guard.
+        // A partial fix that only removes the `true` write from addOptimisticConciergeActionWithDelay
+        // but leaves the `{[CONCIERGE]: false}` cleanup writes in applyPendingConciergeAction /
+        // discardPendingConciergeAction would still clobber the server-owned typing signal
+        // (and any other layer that writes to REPORT_USER_IS_TYPING[CONCIERGE]).
+        it('apply/discardPendingConciergeAction must not write to REPORT_USER_IS_TYPING', async () => {
+            const EXTERNAL_TYPIST_ACCOUNT_ID = 99;
+            const pendingReportAction = {
+                reportActionID: 'pending-99999',
+                actorAccountID: CONST.ACCOUNT_ID.CONCIERGE,
+                message: [
+                    {
+                        html: '<p>To set up QuickBooks, go to Settings...</p>',
+                        text: 'To set up QuickBooks, go to Settings...',
+                        type: CONST.REPORT.MESSAGE.TYPE.COMMENT,
+                    },
+                ],
+            } as OnyxTypes.ReportAction;
+
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${REPORT_ID}`, report);
+            // Pre-seed the typing map with both an external human typist AND the server asserting
+            // Concierge is processing — the exact shape the server would produce via the
+            // agentZeroProcessingIndicator NVP. A correct fix must touch neither entry.
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}`, {
+                [EXTERNAL_TYPIST_ACCOUNT_ID]: true,
+                [CONST.ACCOUNT_ID.CONCIERGE]: true,
+            });
+            await waitForBatchedUpdates();
+
+            applyPendingConciergeAction(REPORT_ID, pendingReportAction);
+            await waitForBatchedUpdates();
+
+            // Sanity: apply must still deliver the reportAction and clear the pending slot —
+            // ensures the fix doesn't delete too much from the delayed-response pipeline.
+            const reportActionsAfterApply = await getOnyxValue(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS}${REPORT_ID}` as const);
+            expect(reportActionsAfterApply?.[pendingReportAction.reportActionID]).toBeDefined();
+            const pendingAfterApply = await getOnyxValue(`${ONYXKEYS.COLLECTION.PENDING_CONCIERGE_RESPONSE}${REPORT_ID}` as const);
+            expect(pendingAfterApply).toBeFalsy();
+
+            // The pre-existing typing state must survive apply() untouched. The bug writes
+            // {[CONCIERGE]: false}, which flips the server's assertion — catch that.
+            const typingAfterApply = await getOnyxValue(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}` as const);
+            expect(typingAfterApply?.[EXTERNAL_TYPIST_ACCOUNT_ID]).toBe(true);
+            expect(typingAfterApply?.[CONST.ACCOUNT_ID.CONCIERGE]).toBe(true);
+
+            // Same guarantee for the discard path (stale pending response).
+            discardPendingConciergeAction(REPORT_ID);
+            await waitForBatchedUpdates();
+
+            const typingAfterDiscard = await getOnyxValue(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}` as const);
+            expect(typingAfterDiscard?.[EXTERNAL_TYPIST_ACCOUNT_ID]).toBe(true);
+            expect(typingAfterDiscard?.[CONST.ACCOUNT_ID.CONCIERGE]).toBe(true);
         });
 
         it('should create Concierge response with timestamp strictly after the user comment', async () => {
