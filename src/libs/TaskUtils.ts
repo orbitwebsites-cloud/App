@@ -59,8 +59,4 @@ function getTaskCreatedMessage(translate: LocalizedTranslate, reportAction: Onyx
     return taskTitle ? translate('task.messages.created', taskTitle) : '';
 }
 
-function isTaskCompleted(reportAction: OnyxEntry<ReportAction>): boolean {
-    return reportAction?.childStateNum === CONST.REPORT.STATE_NUM.APPROVED && reportAction?.childStatusNum === CONST.REPORT.STATUS_NUM.APPROVED;
-}
-
-export {isActiveTaskEditRoute, getTaskReportActionMessage, getTaskTitle, getTaskCreatedMessage, isTaskCompleted};
+export {isActiveTaskEditRoute, getTaskReportActionMessage, getTaskTitle, getTaskCreatedMessage};
