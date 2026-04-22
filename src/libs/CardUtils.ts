@@ -1010,7 +1010,7 @@ function checkIfNewFeedConnected(prevFeedsData: CombinedCardFeeds, currentFeedsD
         plaidBank &&
         (currentFeeds.find((feed) => {
             return splitCardFeedWithDomainID(feed as CompanyCardFeedWithDomainID)?.feedName === expectedPlaidFeedName;
-        }) ||
+        }) ??
             rawFeedKeys?.some((key) => key === expectedPlaidFeedName));
 
     return {
