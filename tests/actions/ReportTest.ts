@@ -5434,6 +5434,55 @@ describe('actions/Report', () => {
             expect(typingStatus?.[CONST.ACCOUNT_ID.CONCIERGE]).toBe(true);
         });
 
+        // Regression test for https://github.com/Expensify/App/issues/626937 — the client-local
+        // REPORT_USER_IS_TYPING[CONCIERGE] optimistic write collides with the server-driven
+        // agentZeroProcessingIndicator NVP, producing two overlapping indicators.
+        it('should not set REPORT_USER_IS_TYPING[CONCIERGE] when queuing a pre-generated response', async () => {
+            const reportAction = {
+                reportActionID: REPORT_ACTION_ID,
+                actorAccountID: CONST.ACCOUNT_ID.CONCIERGE,
+                message: [
+                    {
+                        html: '<p>Here is help</p><followup-list><followup><followup-text>How do I set up QuickBooks?</followup-text><followup-response>To set up QuickBooks, go to Settings...</followup-response></followup></followup-list>',
+                        text: 'Here is help',
+                        type: CONST.REPORT.MESSAGE.TYPE.COMMENT,
+                    },
+                ],
+            } as OnyxTypes.ReportAction;
+
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${REPORT_ID}`, report);
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT_ACTIONS}${REPORT_ID}`, {
+                [REPORT_ACTION_ID]: reportAction,
+            });
+            // Pre-seed the typing key with CONCIERGE explicitly false so we can distinguish
+            // "never touched" from "touched-and-left-false". The bug merges {[CONCIERGE]: true},
+            // flipping this value; the correct behavior leaves the pre-seeded false alone.
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}`, {[CONST.ACCOUNT_ID.CONCIERGE]: false});
+            await waitForBatchedUpdates();
+
+            resolveSuggestedFollowup(
+                report,
+                undefined,
+                reportAction,
+                {text: 'How do I set up QuickBooks?', response: 'To set up QuickBooks, go to Settings...'},
+                CONST.DEFAULT_TIME_ZONE,
+                TEST_USER_ACCOUNT_ID,
+                TEST_USER_EMAIL,
+            );
+            await waitForBatchedUpdates();
+
+            // The pending-response pipeline must still be queued — removing the typing merge
+            // should not disturb the 4s delayed-display mechanism.
+            const pendingResponse = await getOnyxValue(`${ONYXKEYS.COLLECTION.PENDING_CONCIERGE_RESPONSE}${REPORT_ID}` as const);
+            expect(pendingResponse).not.toBeNull();
+            expect(pendingResponse?.reportAction.actorAccountID).toBe(CONST.ACCOUNT_ID.CONCIERGE);
+
+            // The Concierge typing flag must remain falsy — the server-driven indicator
+            // (agentZeroProcessingIndicator) is the single source of truth for this signal.
+            const typingStatus = await getOnyxValue(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}` as const);
+            expect(typingStatus?.[CONST.ACCOUNT_ID.CONCIERGE]).toBeFalsy();
+        });
+
         it('should create Concierge response with timestamp strictly after the user comment', async () => {
             const reportAction = {
                 reportActionID: REPORT_ACTION_ID,
