@@ -5,10 +5,11 @@ keywords: [New Expensify, QuickBooks Desktop, Web Connector, accounting integrat
 order: 1
 ---
 
-
 QuickBooks Desktop is accounting software designed for small and medium-sized businesses. Connecting Expensify to QuickBooks Desktop streamlines your expense management and accounting workflows.
 
 To connect QuickBooks Desktop to Expensify, you must log in as an Admin in QuickBooks Desktop. Make sure **the company file you want to connect to is the only one open**.
+
+**Note:** If you already have QuickBooks Desktop connected on another workspace, you can select an existing connection during the setup process instead of connecting again. 
 
 ---
 
@@ -20,7 +21,7 @@ To connect QuickBooks Desktop to Expensify, you must log in as an Admin in Quick
 4. In the **Integrate** section, toggle on **Accounting**
 5. Click **Accounting** in the left-hand menu
 6. Click **Set up** next to QuickBooks Desktop
-7. If you already have QuickBooks Desktop connected on another workspace, you'll see a list of existing connections. You can select one to reuse it, or click **Create new connection** to set up a fresh connection. If you reuse an existing connection, the setup is complete — no further steps are needed.
+7. Click **Create new connection**.
 8. Click **Copy** to copy the link, then paste the link into the computer that runs QuickBooks Desktop
 9. Select your QuickBooks Desktop version
 
