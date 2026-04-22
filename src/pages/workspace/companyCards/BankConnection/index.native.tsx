@@ -60,13 +60,14 @@ function BankConnection({policyID: policyIDFromProps, feed, route, title}: BankC
     const plaidToken = addNewCard?.data?.publicToken ?? assignCard?.cardToAssign?.plaidAccessToken;
     const isPlaid = !!plaidToken;
     const url = getCompanyCardBankConnection(policyID, bankName);
-    const [cardFeeds] = useCardFeeds(policyID);
+    const [cardFeeds, , rawCardFeeds] = useCardFeeds(policyID);
     const [isConnectionCompleted, setConnectionCompleted] = useState(false);
     const prevFeedsData = usePrevious(cardFeeds);
     const isFeedExpired = feed ? isSelectedFeedExpired(cardFeeds?.[feed]) : false;
+    const rawFeedKeys = useMemo(() => Object.keys(rawCardFeeds?.settings?.companyCards ?? {}), [rawCardFeeds?.settings?.companyCards]);
     const {isNewFeedConnected, newFeed} = useMemo(
-        () => checkIfNewFeedConnected(prevFeedsData ?? {}, cardFeeds ?? {}, addNewCard?.data?.plaidConnectedFeed),
-        [addNewCard?.data?.plaidConnectedFeed, cardFeeds, prevFeedsData],
+        () => checkIfNewFeedConnected(prevFeedsData ?? {}, cardFeeds ?? {}, addNewCard?.data?.plaidConnectedFeed, rawFeedKeys),
+        [addNewCard?.data?.plaidConnectedFeed, cardFeeds, prevFeedsData, rawFeedKeys],
     );
     const headerTitleAddCards = !backTo ? translate('workspace.companyCards.addCards') : undefined;
     const headerTitle = feed ? translate('workspace.companyCards.assignCard') : headerTitleAddCards;
@@ -152,6 +153,7 @@ function BankConnection({policyID: policyIDFromProps, feed, route, title}: BankC
             } else {
                 Navigation.goBack(ROUTES.WORKSPACE_COMPANY_CARDS.getRoute(policyID));
             }
+            return;
         }
         if (isPlaid) {
             onImportPlaidAccounts();

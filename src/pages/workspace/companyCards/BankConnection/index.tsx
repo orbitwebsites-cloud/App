@@ -56,15 +56,16 @@ function BankConnection({policyID: policyIDFromProps, feed, route, title}: BankC
     const [assignCard] = useOnyx(ONYXKEYS.ASSIGN_CARD);
     const {feed: bankNameFromRoute, backTo, policyID: policyIDFromRoute} = route?.params ?? {};
     const policyID = policyIDFromProps ?? policyIDFromRoute;
-    const [cardFeeds] = useCardFeeds(policyID);
+    const [cardFeeds, , rawCardFeeds] = useCardFeeds(policyID);
     const prevFeedsData = usePrevious(cardFeeds);
     const illustrations = useMemoizedLazyIllustrations(['PendingBank']);
     const [shouldBlockWindowOpen, setShouldBlockWindowOpen] = useState(false);
     const selectedBank = addNewCard?.data?.selectedBank;
     const bankName = feed ? getBankName(getCompanyCardFeed(feed)) : (bankNameFromRoute ?? addNewCard?.data?.plaidConnectedFeed ?? selectedBank);
+    const rawFeedKeys = useMemo(() => Object.keys(rawCardFeeds?.settings?.companyCards ?? {}), [rawCardFeeds?.settings?.companyCards]);
     const {isNewFeedConnected, newFeed} = useMemo(
-        () => checkIfNewFeedConnected(prevFeedsData ?? {}, cardFeeds ?? {}, addNewCard?.data?.plaidConnectedFeed),
-        [addNewCard?.data?.plaidConnectedFeed, cardFeeds, prevFeedsData],
+        () => checkIfNewFeedConnected(prevFeedsData ?? {}, cardFeeds ?? {}, addNewCard?.data?.plaidConnectedFeed, rawFeedKeys),
+        [addNewCard?.data?.plaidConnectedFeed, cardFeeds, prevFeedsData, rawFeedKeys],
     );
     const {isOffline} = useNetwork();
     const plaidToken = addNewCard?.data?.publicToken ?? assignCard?.cardToAssign?.plaidAccessToken;
