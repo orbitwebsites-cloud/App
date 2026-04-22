@@ -1,1 +1,6 @@
 *.pbxproj -text
+
+# eslint-seatbelt ratchet: union merge keeps every branch's allowed-errors rows
+# so rebases don't clobber another branch's ratchet progress. Re-run eslint
+# after resolving to dedupe rows.
+eslint.seatbelt.tsv merge=union

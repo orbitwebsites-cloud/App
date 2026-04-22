@@ -8,6 +8,7 @@ import react from 'eslint-plugin-react';
 import reactNativeA11Y from 'eslint-plugin-react-native-a11y';
 import testingLibrary from 'eslint-plugin-testing-library';
 import youDontNeedLodashUnderscore from 'eslint-plugin-you-dont-need-lodash-underscore';
+import seatbelt from 'eslint-seatbelt';
 import {defineConfig, globalIgnores} from 'eslint/config';
 import globals from 'globals';
 import path from 'node:path';
@@ -153,7 +154,81 @@ const restrictedImportPatterns = [
     },
 ];
 
+const restrictedReportNameImportPatterns = [
+    {
+        group: ['**/ReportNameUtils', '**/libs/ReportNameUtils'],
+        importNames: ['computeReportName'],
+        message: 'Do not import computeReportName. Use getReportName instead, which properly uses derived report attributes.',
+    },
+];
+
+// Shared no-restricted-syntax selectors that apply to every file.
+const sharedRestrictedSyntax = [
+    {
+        selector: 'TSEnumDeclaration',
+        message: "Please don't declare enums, use union types instead.",
+    },
+    {
+        selector: 'CallExpression[callee.object.name="React"][callee.property.name="forwardRef"]',
+        message: 'forwardRef is deprecated. Please use ref as a prop instead. See: contributingGuides/STYLE.md#forwarding-refs',
+    },
+    {
+        selector: 'CallExpression[callee.name="getUrlWithBackToParam"]',
+        message:
+            'Usage of getUrlWithBackToParam function is prohibited. This is legacy code and no new occurrences should be added. Please look into the `How to remove backTo from URL` section in contributingGuides/NAVIGATION.md. and use alternative routing methods instead.',
+    },
+
+    // These are the original rules from AirBnB's style guide, modified to allow for...of loops and for...in loops
+    {
+        selector: 'LabeledStatement',
+        message: 'Labels are a form of GOTO; using them makes code confusing and hard to maintain and understand.',
+    },
+    {
+        selector: 'WithStatement',
+        message: '`with` is disallowed in strict mode because it makes code impossible to predict and optimize. It is also deprecated.',
+    },
+];
+
+// Additional selectors that only apply to ts/tsx files.
+const tsRestrictedSyntax = [
+    {
+        selector: 'ImportNamespaceSpecifier[parent.source.value=/^@libs/]',
+        message: 'Namespace imports from @libs are not allowed. Use named imports instead. Example: import { method } from "@libs/module"',
+    },
+    {
+        selector: 'ImportNamespaceSpecifier[parent.source.value=/^@userActions/]',
+        message: 'Namespace imports from @userActions are not allowed. Use named imports instead. Example: import { action } from "@userActions/module"',
+    },
+    {
+        selector: 'JSXElement[openingElement.name.name=/^Pressable(WithoutFeedback|WithFeedback|WithDelayToggle|WithoutFocus)$/]:not(:has(JSXAttribute[name.name="sentryLabel"]))',
+        message: 'All Pressable components must include sentryLabel prop for Sentry tracking. Example: <PressableWithoutFeedback sentryLabel="MoreMenu-ExportFile" />',
+    },
+];
+
+// Extra selectors for libs/** files that forbid relative-path namespace imports.
+const libsRestrictedSyntax = [
+    {
+        selector: 'ImportNamespaceSpecifier[parent.source.value=/^\\.\\./]',
+        message: 'Namespace imports are not allowed. Use named imports instead. Example: import { method } from "../libs/module"',
+    },
+    {
+        selector: 'ImportNamespaceSpecifier[parent.source.value=/^\\./]',
+        message: 'Namespace imports are not allowed. Use named imports instead. Example: import { method } from "./libs/module"',
+    },
+];
+
 const config = defineConfig([
+    // Must be the first entry so that seatbelt's processor can wrap every other
+    // rule. Seatbelt ratchets the set of allowed errors in eslint.seatbelt.tsv.
+    seatbelt.configs.enable,
+    {
+        settings: {
+            seatbelt: {
+                seatbeltFile: new URL('./eslint.seatbelt.tsv', import.meta.url).pathname,
+            },
+        },
+    },
+
     expensifyConfig,
     typescriptEslint.configs.recommendedTypeChecked,
     typescriptEslint.configs.stylisticTypeChecked,
@@ -325,32 +400,7 @@ const config = defineConfig([
             ],
 
             // Disallow usage of certain functions and imports
-            'no-restricted-syntax': [
-                'error',
-                {
-                    selector: 'TSEnumDeclaration',
-                    message: "Please don't declare enums, use union types instead.",
-                },
-                {
-                    selector: 'CallExpression[callee.object.name="React"][callee.property.name="forwardRef"]',
-                    message: 'forwardRef is deprecated. Please use ref as a prop instead. See: contributingGuides/STYLE.md#forwarding-refs',
-                },
-                {
-                    selector: 'CallExpression[callee.name="getUrlWithBackToParam"]',
-                    message:
-                        'Usage of getUrlWithBackToParam function is prohibited. This is legacy code and no new occurrences should be added. Please look into the `How to remove backTo from URL` section in contributingGuides/NAVIGATION.md. and use alternative routing methods instead.',
-                },
-
-                // These are the original rules from AirBnB's style guide, modified to allow for...of loops and for...in loops
-                {
-                    selector: 'LabeledStatement',
-                    message: 'Labels are a form of GOTO; using them makes code confusing and hard to maintain and understand.',
-                },
-                {
-                    selector: 'WithStatement',
-                    message: '`with` is disallowed in strict mode because it makes code impossible to predict and optimize. It is also deprecated.',
-                },
-            ],
+            'no-restricted-syntax': ['error', ...sharedRestrictedSyntax],
             'no-restricted-properties': [
                 'error',
                 {
@@ -396,7 +446,7 @@ const config = defineConfig([
             'jsdoc/check-types': 'off',
             'jsdoc/no-types': 'error',
             '@dword-design/import-alias/prefer-alias': [
-                'warn',
+                'error',
                 {
                     alias: {
                         '@assets': './assets',
@@ -569,6 +619,48 @@ const config = defineConfig([
             'testing-library/prefer-find-by': 'error',
             'testing-library/prefer-presence-queries': 'error',
             'testing-library/prefer-screen-queries': 'error',
+        },
+    },
+
+    // Rules migrated from the old eslint.changed.config.mjs. They only ever ran on changed
+    // files in CI; consolidating them here enforces them globally, with eslint-seatbelt
+    // ratcheting down any pre-existing errors.
+    //
+    // The earlier `.github scripts tests` block deliberately replaces no-restricted-syntax
+    // with a relaxed set. Exclude those dirs here so the relaxation sticks.
+    {
+        files: ['**/*.ts', '**/*.tsx'],
+        ignores: ['.github/**/*', 'scripts/**/*', 'tests/**/*'],
+        rules: {
+            '@typescript-eslint/no-deprecated': 'error',
+            'rulesdir/no-default-id-values': 'error',
+            'rulesdir/no-unstable-hook-defaults': 'error',
+            'no-restricted-syntax': ['error', ...sharedRestrictedSyntax, ...tsRestrictedSyntax],
+        },
+    },
+
+    // Forbid importing computeReportName outside of reportAttributes, where it is allowed
+    // to seed the derived value. Everywhere else callers must use getReportName.
+    // .github/** has its own scope-specific no-restricted-imports rules, so exclude it here.
+    {
+        files: ['**/*.ts', '**/*.tsx'],
+        ignores: ['src/libs/actions/OnyxDerived/configs/reportAttributes.ts', '.github/**/*'],
+        rules: {
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: restrictedImportPaths,
+                    patterns: [...restrictedImportPatterns, ...restrictedReportNameImportPatterns],
+                },
+            ],
+        },
+    },
+
+    // Inside libs/** also forbid namespace imports via relative paths.
+    {
+        files: ['**/libs/**/*.{ts,tsx}'],
+        rules: {
+            'no-restricted-syntax': ['error', ...sharedRestrictedSyntax, ...tsRestrictedSyntax, ...libsRestrictedSyntax],
         },
     },
 

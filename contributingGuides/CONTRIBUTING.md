@@ -186,7 +186,7 @@ This helps future investigators understand the history and current status of err
 14. When you are ready to submit your pull request for final review, make sure the following checks pass:
 	1. CLA - You must sign our [Contributor License Agreement](https://github.com/Expensify/App/blob/main/CLA.md) by following the CLA bot instructions that will be posted on your PR
 	2. Tests - All tests must pass before a merge of a pull request
-	3. Lint - All code must pass lint checks before a merge of a pull request
+	3. Lint - All code must pass lint checks before a merge of a pull request. See [LINTING.md](./LINTING.md) for how the ratchet (eslint-seatbelt) works.
 15. Please never force push when a PR review has already started (because this messes with the PR review history)
 16. Please pay attention to the pull request template, especially to how we link PRs with issues they fix. Make sure you don't use GitHub keywords such as `fixes` in your PR description, as this can break our current automated steps for issue management. Follow the PR template format carefully.
 17. Upon submission of a PR, please include a numbered list of explicit testing steps for each platform (Web, iOS, Android, and Mobile Web) to confirm the fix works as expected and there are no regressions.

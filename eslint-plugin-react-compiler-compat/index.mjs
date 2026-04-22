@@ -12,11 +12,18 @@
  * 3. If any function fails to compile, preserve all lint messages as-is
  */
 import {transformSync} from '@babel/core';
+import seatbelt from 'eslint-seatbelt';
 import _ from 'lodash';
 import {createRequire} from 'module';
 
 const require = createRequire(import.meta.url);
 const ReactCompilerConfig = require('../config/babel/reactCompilerConfig');
+
+// Seatbelt ships its own processor that preprocess/postprocess every lint run to
+// ratchet allowed errors recorded in `eslint.seatbelt.tsv`. ESLint only supports
+// a single processor per file, so we have to chain it manually here — otherwise
+// this processor would replace seatbelt's for every `.tsx` / `.jsx` file.
+const seatbeltProcessor = seatbelt.processors.seatbelt;
 
 // Rules that are entirely unnecessary when React Compiler successfully compiles
 // all functions in a file. Add more rules here as needed.
@@ -83,6 +90,25 @@ function checkReactCompilerCompilation(text, filename) {
     return hasSuccess && !hasError;
 }
 
+function filterCompilerSuppressedMessages(messages, filename) {
+    const allCompiled = compilationResults.get(filename);
+    compilationResults.delete(filename);
+
+    if (!allCompiled) {
+        return messages;
+    }
+
+    return _.filter(messages, (msg) => {
+        if (RULES_SUPPRESSED_BY_REACT_COMPILER.has(msg.ruleId)) {
+            return false;
+        }
+        if (msg.ruleId === 'react-hooks/exhaustive-deps' && EXHAUSTIVE_DEPS_USECALLBACK_USEMEMO_PATTERN.test(msg.message)) {
+            return false;
+        }
+        return true;
+    });
+}
+
 const plugin = {
     meta: {name: 'eslint-plugin-react-compiler-compat'},
     processors: {
@@ -101,27 +127,18 @@ const plugin = {
                     compilationResults.set(filename, checkReactCompilerCompilation(text, filename));
                 }
 
-                // Pass the source through unchanged as a single code block
-                return [text];
+                // Register this file with seatbelt (this is what seatbelt's
+                // own preprocess does) so that its postprocess can transform
+                // errors into warnings based on `eslint.seatbelt.tsv`.
+                return seatbeltProcessor.preprocess(text, filename);
             },
 
             postprocess(messages, filename) {
-                const allCompiled = compilationResults.get(filename);
-                compilationResults.delete(filename);
-
-                if (allCompiled) {
-                    return _.filter(messages[0], (msg) => {
-                        if (RULES_SUPPRESSED_BY_REACT_COMPILER.has(msg.ruleId)) {
-                            return false;
-                        }
-                        if (msg.ruleId === 'react-hooks/exhaustive-deps' && EXHAUSTIVE_DEPS_USECALLBACK_USEMEMO_PATTERN.test(msg.message)) {
-                            return false;
-                        }
-                        return true;
-                    });
-                }
-
-                return messages[0];
+                // Order matters: filter messages that React Compiler already
+                // makes irrelevant first, then hand the remaining messages to
+                // seatbelt so its ratchet doesn't count suppressed rules.
+                const filtered = filterCompilerSuppressedMessages(messages[0], filename);
+                return seatbeltProcessor.postprocess([filtered], filename);
             },
         },
     },
