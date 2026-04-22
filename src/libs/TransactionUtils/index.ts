@@ -2167,10 +2167,9 @@ function getWorkspaceTaxesSettingsName(policy: OnyxEntry<Policy>, taxCode: strin
  * Gets the name corresponding to the taxCode that is displayed to the user
  */
 function getTaxName(policy: OnyxEntry<Policy>, transaction: OnyxEntry<Transaction>, shouldFallbackToValue = false) {
-    // A falsy taxCode means tax was explicitly cleared (e.g. via "Delete tax") or was never set.
-    // After clearing, the API returns null which Onyx removes, leaving taxCode as undefined.
-    // In all these cases, don't fall back to the default tax rate.
-    if (!transaction?.taxCode) {
+    // An empty string taxCode means tax was explicitly cleared (e.g. via "Delete tax").
+    // Don't fall back to the default tax rate in that case.
+    if (transaction?.taxCode === '') {
         return undefined;
     }
 
