@@ -5429,9 +5429,11 @@ describe('actions/Report', () => {
             expect(pendingResponse?.reportAction.actorAccountID).toBe(CONST.ACCOUNT_ID.CONCIERGE);
             expect(pendingResponse?.displayAfter).toBeGreaterThan(Date.now() - CONCIERGE_RESPONSE_DELAY_MS);
 
-            // Verify the typing indicator was set
+            // Verify the client did NOT set REPORT_USER_IS_TYPING — the "Concierge is thinking..."
+            // indicator is driven by the server-owned agentZeroProcessingIndicator NVP, so writing
+            // here would produce two overlapping indicators (issue #626937).
             const typingStatus = await getOnyxValue(`${ONYXKEYS.COLLECTION.REPORT_USER_IS_TYPING}${REPORT_ID}` as const);
-            expect(typingStatus?.[CONST.ACCOUNT_ID.CONCIERGE]).toBe(true);
+            expect(typingStatus?.[CONST.ACCOUNT_ID.CONCIERGE]).toBeFalsy();
         });
 
         // Regression test for https://github.com/Expensify/App/issues/626937 — the client-local
