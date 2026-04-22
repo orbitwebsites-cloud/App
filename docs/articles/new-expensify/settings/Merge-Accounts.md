@@ -19,6 +19,8 @@ If you have multiple Expensify accounts, you can merge them into a single login.
 
 **Note:** If your company uses **SAML authentication**, a domain admin must approve the request. In that case, you may be prompted to **Switch to Classic** to initiate this. If your mobile account is locked to New Expensify, complete this step on the web instead.
 
+Learn how to [Switch to Expensify Classic](/articles/new-expensify/settings/Switch-between-New-Expensify-and-Expensify-Classic#who-can-switch-between-new-expensify-and-expensify-classic).
+
 ---
 
 # How to Merge Accounts
