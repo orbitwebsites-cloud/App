@@ -188,6 +188,20 @@ function ParentNavigationSubtitle({
             }
         }
 
+        if (openParentReportInCurrentTab && currentFocusedNavigator?.name === NAVIGATORS.REPORTS_SPLIT_NAVIGATOR && currentReportIndex && currentReportIndex > 0) {
+            const currentRoute = focusedNavigatorState?.routes[currentReportIndex];
+            const previousRoute = focusedNavigatorState?.routes[currentReportIndex - 1];
+
+            if (currentRoute?.name === SCREENS.REPORT && previousRoute?.name === SCREENS.REPORT && previousRoute.params && 'reportID' in previousRoute.params) {
+                const previousReportID = previousRoute.params.reportID;
+
+                if (previousReportID === parentReportID) {
+                    Navigation.goBack();
+                    return;
+                }
+            }
+        }
+
         if (isVisibleAction) {
             Navigation.navigate(ROUTES.REPORT_WITH_ID.getRoute(parentReportID, parentReportActionID));
         } else {
