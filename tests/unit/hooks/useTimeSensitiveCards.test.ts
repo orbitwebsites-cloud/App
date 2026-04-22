@@ -25,7 +25,7 @@ describe('useTimeSensitiveCards', () => {
     it('should return empty arrays when no cards exist', () => {
         const {result} = renderHook(() => useTimeSensitiveCards());
 
-        expect(result.current.cardsNeedingShippingAddress).toEqual([]);
+        expect(result.current.cardNeedingShippingAddress).toBeUndefined();
         expect(result.current.cardsNeedingActivation).toEqual([]);
         expect(result.current.cardsWithFraud).toEqual([]);
         expect(result.current.shouldShowAddShippingAddress).toBe(false);
@@ -42,7 +42,7 @@ describe('useTimeSensitiveCards', () => {
 
         const {result} = renderHook(() => useTimeSensitiveCards());
 
-        expect(result.current.cardsNeedingShippingAddress).toEqual([]);
+        expect(result.current.cardNeedingShippingAddress).toBeUndefined();
         expect(result.current.cardsNeedingActivation).toEqual([]);
         expect(result.current.shouldShowAddShippingAddress).toBe(false);
         expect(result.current.shouldShowActivateCard).toBe(false);
@@ -57,10 +57,24 @@ describe('useTimeSensitiveCards', () => {
 
         const {result} = renderHook(() => useTimeSensitiveCards());
 
-        expect(result.current.cardsNeedingShippingAddress).toHaveLength(1);
-        expect(result.current.cardsNeedingShippingAddress.at(0)?.cardID).toBe(1);
+        expect(result.current.cardNeedingShippingAddress?.cardID).toBe(1);
         expect(result.current.shouldShowAddShippingAddress).toBe(true);
         expect(result.current.shouldShowActivateCard).toBe(false);
+    });
+
+    it('should return a single card even when multiple cards are awaiting shipping address', async () => {
+        const firstPendingCard = createRandomExpensifyCard(1, {state: CONST.EXPENSIFY_CARD.STATE.STATE_NOT_ISSUED});
+        const secondPendingCard = createRandomExpensifyCard(2, {state: CONST.EXPENSIFY_CARD.STATE.STATE_NOT_ISSUED});
+        const thirdPendingCard = createRandomExpensifyCard(3, {state: CONST.EXPENSIFY_CARD.STATE.STATE_NOT_ISSUED});
+        const cardList: CardList = {'1': firstPendingCard, '2': secondPendingCard, '3': thirdPendingCard};
+
+        await Onyx.merge(ONYXKEYS.CARD_LIST, cardList);
+        await waitForBatchedUpdates();
+
+        const {result} = renderHook(() => useTimeSensitiveCards());
+
+        expect(result.current.shouldShowAddShippingAddress).toBe(true);
+        expect(result.current.cardNeedingShippingAddress?.cardID).toBeDefined();
     });
 
     it('should identify cards needing activation and set shouldShowActivateCard to true', async () => {
@@ -94,7 +108,7 @@ describe('useTimeSensitiveCards', () => {
 
         const {result} = renderHook(() => useTimeSensitiveCards());
 
-        expect(result.current.cardsNeedingShippingAddress).toHaveLength(1);
+        expect(result.current.cardNeedingShippingAddress?.cardID).toBe(1);
         expect(result.current.cardsNeedingActivation).toHaveLength(1);
         expect(result.current.shouldShowAddShippingAddress).toBe(true);
         expect(result.current.shouldShowActivateCard).toBe(true);
@@ -145,8 +159,7 @@ describe('useTimeSensitiveCards', () => {
         const {result} = renderHook(() => useTimeSensitiveCards());
 
         // Only Expensify card should be included
-        expect(result.current.cardsNeedingShippingAddress).toHaveLength(1);
-        expect(result.current.cardsNeedingShippingAddress.at(0)?.cardID).toBe(2);
+        expect(result.current.cardNeedingShippingAddress?.cardID).toBe(2);
     });
 
     it('should update when card list changes', async () => {
@@ -233,7 +246,7 @@ describe('useTimeSensitiveCards', () => {
 
         const {result} = renderHook(() => useTimeSensitiveCards());
 
-        expect(result.current.cardsNeedingShippingAddress).toHaveLength(0);
+        expect(result.current.cardNeedingShippingAddress).toBeUndefined();
         expect(result.current.shouldShowAddShippingAddress).toBe(false);
     });
 

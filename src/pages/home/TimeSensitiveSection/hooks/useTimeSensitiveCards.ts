@@ -6,7 +6,7 @@ import type {Card} from '@src/types/onyx';
 function useTimeSensitiveCards() {
     const [cards] = useOnyx(ONYXKEYS.CARD_LIST);
 
-    const cardsNeedingShippingAddress: Card[] = [];
+    let cardNeedingShippingAddress: Card | undefined;
     const cardsNeedingActivation: Card[] = [];
     const cardsWithFraud: Card[] = [];
 
@@ -32,8 +32,8 @@ function useTimeSensitiveCards() {
             continue;
         }
 
-        if (isCardPendingIssue(card)) {
-            cardsNeedingShippingAddress.push(card);
+        if (!cardNeedingShippingAddress && isCardPendingIssue(card)) {
+            cardNeedingShippingAddress = card;
         }
 
         if (isCardPendingActivate(card)) {
@@ -41,7 +41,7 @@ function useTimeSensitiveCards() {
         }
     }
 
-    const shouldShowAddShippingAddress = cardsNeedingShippingAddress.length > 0;
+    const shouldShowAddShippingAddress = !!cardNeedingShippingAddress;
     const shouldShowActivateCard = cardsNeedingActivation.length > 0;
     const shouldShowReviewCardFraud = cardsWithFraud.length > 0;
 
@@ -49,7 +49,7 @@ function useTimeSensitiveCards() {
         shouldShowAddShippingAddress,
         shouldShowActivateCard,
         shouldShowReviewCardFraud,
-        cardsNeedingShippingAddress,
+        cardNeedingShippingAddress,
         cardsNeedingActivation,
         cardsWithFraud,
     };

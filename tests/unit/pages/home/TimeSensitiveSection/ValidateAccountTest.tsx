@@ -28,7 +28,7 @@ jest.mock('@src/pages/home/TimeSensitiveSection/hooks/useTimeSensitiveCards', ()
         shouldShowAddShippingAddress: false,
         shouldShowActivateCard: false,
         shouldShowReviewCardFraud: false,
-        cardsNeedingShippingAddress: [],
+        cardNeedingShippingAddress: undefined,
         cardsNeedingActivation: [],
         cardsWithFraud: [],
     })),

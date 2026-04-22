@@ -66,7 +66,7 @@ function TimeSensitiveSection() {
 
     // Use custom hooks for offers and cards (Release 3)
     const {shouldShowAddPaymentCard} = useTimeSensitiveAddPaymentCard();
-    const {shouldShowAddShippingAddress, shouldShowActivateCard, shouldShowReviewCardFraud, cardsNeedingShippingAddress, cardsNeedingActivation, cardsWithFraud} = useTimeSensitiveCards();
+    const {shouldShowAddShippingAddress, shouldShowActivateCard, shouldShowReviewCardFraud, cardNeedingShippingAddress, cardsNeedingActivation, cardsWithFraud} = useTimeSensitiveCards();
     const {shouldShowFixFailedBilling} = useTimeSensitiveBilling();
 
     // Selector for filtering admin policies (Release 4)
@@ -242,13 +242,12 @@ function TimeSensitiveSection() {
                 ))}
 
                 {/* Priority 8: Expensify card shipping */}
-                {shouldShowAddShippingAddress &&
-                    cardsNeedingShippingAddress.map((card) => (
-                        <AddShippingAddress
-                            key={card.cardID}
-                            card={card}
-                        />
-                    ))}
+                {shouldShowAddShippingAddress && !!cardNeedingShippingAddress && (
+                    <AddShippingAddress
+                        key={cardNeedingShippingAddress.cardID}
+                        card={cardNeedingShippingAddress}
+                    />
+                )}
 
                 {/* Priority 9: Expensify card activation */}
                 {shouldShowActivateCard &&
