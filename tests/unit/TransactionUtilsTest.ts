@@ -1892,18 +1892,6 @@ describe('TransactionUtils', () => {
             expect(result).toBe('');
         });
 
-        it('should return empty string when transaction has null taxCode (API response after tax deletion)', () => {
-            const transaction = generateTransaction({
-                // The API returns null for taxCode after tax deletion, even though the TS type is string | undefined
-                taxCode: null as unknown as string,
-                taxValue: undefined,
-            });
-
-            const result = TransactionUtils.getTaxRateTitle(policy, transaction, false, undefined);
-
-            expect(result).toBe('');
-        });
-
         it('should return default tax name when transaction has no taxCode (pre-tax expense)', () => {
             const transaction = generateTransaction({
                 taxCode: undefined,
