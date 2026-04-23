@@ -29,13 +29,13 @@ function AccountManagerBanner({reportID}: AccountManagerBannerProps) {
         selector: personalDetailsSelector(accountManagerAccountID),
     });
     const [isBannerVisible, setIsBannerVisible] = useState(true);
-
-    if (!accountManagerReportID || !isConciergeChatReport(report) || !isBannerVisible) {
-        return null;
-    }
     const displayName = getDisplayNameOrDefault(participantPersonalDetail);
     const login = participantPersonalDetail?.login;
     const chatWithAccountManagerText = displayName && login ? translate('common.chatWithAccountManager', `${displayName} (${login})`) : '';
+
+    if (!accountManagerReportID || !isConciergeChatReport(report) || !isBannerVisible || !chatWithAccountManagerText) {
+        return null;
+    }
 
     const dismissBanner = () => setIsBannerVisible(false);
     const chatWithAccountManager = () => {
