@@ -12,14 +12,21 @@ type SparkleFallHandle = {
     trigger: () => void;
 };
 
-const VX_SPREAD = 3;
+// Range of randomized initial velocities, centered around 0 (so 50 is [-25, 25])
+const VX_SPREAD = 80;
 const VY_SPREAD = 50;
+
+// Delay parameters so the particles don't all shoot up at once
 const DELAY_SPREAD = 500;
 const DELAY_MULTIPLIER = 0.1;
-const X0_SPREAD = 0;
+
+// Base initial Y velocity is a function of screen height; this magic number controls that ratio
 const SCREEN_HEIGHT_DENOMINATOR = 4.5;
+
+const X0_SPREAD = 0;
 const SPARKLE_COUNT = 80;
 const COLORS = [colors.ice300, colors.ice400, colors.ice500];
+
 const createSparkles = (count: number): SparkleWithKeyId[] => {
     const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 

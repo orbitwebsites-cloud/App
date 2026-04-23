@@ -27,28 +27,40 @@ function FallingSparkle({initialPosition, initialVelocity, color, delay, iconSrc
     const translateX = useSharedValue<number>(initialPosition.x);
     const translateY = useSharedValue<number>(initialPosition.y);
 
+    // Standard ballistic trajectory equations
     const frameCallback = useFrameCallback(({timeSinceFirstFrame}) => {
         const time = timeSinceFirstFrame / SPEED;
 
         translateY.set(initialPosition.y + initialVelocity.y * time + (1 / 2) * GRAVITY * time ** 2);
-        translateX.set(translateX.get() + initialVelocity.x * time);
+        translateX.set(initialPosition.x + initialVelocity.x * time);
     }, false);
 
+    // Start animating after configured delay; stop frame callback after 5 seconds (should be plenty of time)
     useEffect(() => {
-        setTimeout(() => {
+        let stopTimer: ReturnType<typeof setTimeout> | undefined;
+        const startTimer = setTimeout(() => {
             frameCallback.setActive(true);
-            setTimeout(() => {
+            stopTimer = setTimeout(() => {
                 frameCallback.setActive(false);
             }, 5000);
         }, delay);
-    }, [initialPosition, delay, frameCallback]);
+
+        return () => {
+            clearTimeout(startTimer);
+            if (stopTimer) {
+                clearTimeout(stopTimer);
+            }
+            frameCallback.setActive(false);
+        };
+    }, [delay, frameCallback]);
 
     const style = useAnimatedStyle(() => ({
         transform: [{translateX: translateX.get()}, {translateY: translateY.get()}],
+        position: 'absolute',
     }));
 
     return (
-        <Animated.View style={[style, {position: 'absolute'}]}>
+        <Animated.View style={style}>
             <Icon
                 fill={color}
                 src={iconSrc}
