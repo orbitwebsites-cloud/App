@@ -1236,9 +1236,6 @@ function getUpdateMoneyRequestParams(params: GetUpdateMoneyRequestParamsType): U
     }
 
     // Clear out the error fields and loading states on success.
-    // Preserve taxCode/taxValue from the optimistic update because the API may return null for
-    // cleared tax fields, and Onyx strips null values during merge (shouldRemoveNestedNulls).
-    // Without this, taxCode would become undefined — indistinguishable from a pre-tax expense.
     successData.push({
         onyxMethod: Onyx.METHOD.MERGE,
         key: `${ONYXKEYS.COLLECTION.TRANSACTION}${transactionID}`,
@@ -1247,8 +1244,6 @@ function getUpdateMoneyRequestParams(params: GetUpdateMoneyRequestParamsType): U
             isLoading: false,
             errorFields: null,
             routes: null,
-            ...(Object.hasOwn(transactionChanges, 'taxCode') && {taxCode: updatedTransaction?.taxCode}),
-            ...(Object.hasOwn(transactionChanges, 'taxValue') && {taxValue: updatedTransaction?.taxValue}),
         },
     });
 

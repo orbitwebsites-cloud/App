@@ -2167,15 +2167,14 @@ function getWorkspaceTaxesSettingsName(policy: OnyxEntry<Policy>, taxCode: strin
  * Gets the name corresponding to the taxCode that is displayed to the user
  */
 function getTaxName(policy: OnyxEntry<Policy>, transaction: OnyxEntry<Transaction>, shouldFallbackToValue = false) {
-    // An empty string taxCode means tax was explicitly cleared (e.g. via "Delete tax").
-    // Onyx removes null values during merge, so the API response (null) becomes undefined,
-    // which falls through to the default tax code via ?? below. Only '' needs an early return.
-    if (transaction?.taxCode === '') {
+    // Don't fall back to the default tax code when taxCode is empty/undefined.
+    // Expense creation explicitly sets taxCode to the default (MoneyRequest.ts),
+    // so a missing taxCode means tax was deleted or never existed — not "use default".
+    if (!transaction?.taxCode) {
         return undefined;
     }
 
-    const defaultTaxCode = getDefaultTaxCode(policy, transaction);
-    const taxRate = Object.values(transformedTaxRates(policy, transaction)).find((rate) => rate.code === (transaction?.taxCode ?? defaultTaxCode));
+    const taxRate = Object.values(transformedTaxRates(policy, transaction)).find((rate) => rate.code === transaction.taxCode);
 
     if (shouldFallbackToValue && transaction?.taxValue !== undefined && taxRate?.value !== transaction?.taxValue) {
         return transaction?.taxValue;
