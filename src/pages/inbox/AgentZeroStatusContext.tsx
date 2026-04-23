@@ -104,8 +104,7 @@ function AgentZeroStatusGate({reportID, children}: React.PropsWithChildren<{repo
         selector: (report) => report?.participants,
     });
     const accountManagerID = accountManagerAccountID ? Number(accountManagerAccountID) : undefined;
-    const hasManagerAsParticipant =
-        (!!accountManagerID && !!reportParticipants?.[accountManagerID]) || (!!partnerManagerAccountID && !!reportParticipants?.[partnerManagerAccountID]);
+    const hasManagerAsParticipant = (!!accountManagerID && !!reportParticipants?.[accountManagerID]) || (!!partnerManagerAccountID && !!reportParticipants?.[partnerManagerAccountID]);
 
     // Timestamp set when the user sends a message, before the server label arrives — shows "Concierge is thinking..."
     const [optimisticStartTime, setOptimisticStartTime] = useState<number | null>(null);

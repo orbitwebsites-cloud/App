@@ -256,7 +256,7 @@ describe('AgentZeroStatusContext', () => {
             expect(result.current.statusLabel).toBe(serverLabel);
         });
 
-        it('should skip optimistic indicator when the user\'s account manager is a participant of the report', async () => {
+        it("should skip optimistic indicator when the user's account manager is a participant of the report", async () => {
             // Given a Concierge-gated report where the user's AM is a participant (e.g. admins room)
             await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: '42'});
             await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {42: {}}});
@@ -275,7 +275,7 @@ describe('AgentZeroStatusContext', () => {
             expect(result.current.statusLabel).toBe('');
         });
 
-        it('should skip optimistic indicator when the user\'s partner manager is a participant of the report', async () => {
+        it("should skip optimistic indicator when the user's partner manager is a participant of the report", async () => {
             // Given a Concierge-gated report where the user's PM is a participant
             await Onyx.merge(ONYXKEYS.ACCOUNT, {partnerManagerAccountID: 42});
             await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {42: {}}});
