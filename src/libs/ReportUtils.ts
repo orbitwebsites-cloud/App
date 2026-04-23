@@ -7132,6 +7132,8 @@ function buildOptimisticIOUReportAction(params: BuildOptimisticIOUReportActionPa
             // In case of pay someone action, we dont store the comment
             // and there is no single transactionID to link the action to.
             delete originalMessage.IOUTransactionID;
+            originalMessage.amount = amount;
+            originalMessage.currency = currency;
             originalMessage.paymentType = paymentType;
         }
     }

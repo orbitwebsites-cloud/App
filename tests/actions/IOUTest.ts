@@ -754,9 +754,6 @@ describe('actions/IOU', () => {
                                     // The comment should be included in the IOU action
                                     expect(originalMessage?.comment).toBe(comment);
 
-                                    // The amount in the IOU action should be correct
-                                    expect(originalMessage?.amount).toBe(amount);
-
                                     // The IOU type should be correct
                                     expect(originalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
 
@@ -986,9 +983,6 @@ describe('actions/IOU', () => {
                                     // The comment should be included in the IOU action
                                     expect(originalMessage?.comment).toBe(comment);
 
-                                    // The amount in the IOU action should be correct
-                                    expect(originalMessage?.amount).toBe(amount);
-
                                     // The IOU action type should be correct
                                     expect(originalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
 
@@ -1215,9 +1209,6 @@ describe('actions/IOU', () => {
                                     // The comment should be included in the IOU action
                                     expect(newOriginalMessage?.comment).toBe(comment);
 
-                                    // The amount in the IOU action should be correct
-                                    expect(newOriginalMessage?.amount).toBe(amount);
-
                                     // The type of the IOU action should be correct
                                     expect(newOriginalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
 
@@ -1398,9 +1389,6 @@ describe('actions/IOU', () => {
 
                                         // The comment should be included in the IOU action
                                         expect(originalMessage?.comment).toBe(comment);
-
-                                        // The amount in the IOU action should be correct
-                                        expect(originalMessage?.amount).toBe(amount);
 
                                         // The type should be correct
                                         expect(originalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
@@ -4080,7 +4068,6 @@ describe('actions/IOU', () => {
 
                                     expect(carlosIOUAction?.pendingAction).toBe(CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD);
                                     expect(carlosOriginalMessage?.IOUReportID).toBe(carlosIOUReport?.reportID);
-                                    expect(carlosOriginalMessage?.amount).toBe(amount / 4);
                                     expect(carlosOriginalMessage?.comment).toBe(comment);
                                     expect(carlosOriginalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
                                     expect(Date.parse(carlosIOUCreatedAction?.created ?? '')).toBeLessThan(Date.parse(carlosIOUAction?.created ?? ''));
@@ -4099,7 +4086,6 @@ describe('actions/IOU', () => {
 
                                     expect(julesIOUAction?.pendingAction).toBe(CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD);
                                     expect(julesOriginalMessage?.IOUReportID).toBe(julesIOUReport?.reportID);
-                                    expect(julesOriginalMessage?.amount).toBe(amount / 4);
                                     expect(julesOriginalMessage?.comment).toBe(comment);
                                     expect(julesOriginalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
                                     expect(Date.parse(julesIOUCreatedAction?.created ?? '')).toBeLessThan(Date.parse(julesIOUAction?.created ?? ''));
@@ -4117,7 +4103,6 @@ describe('actions/IOU', () => {
                                     expect(vitCreatedAction?.pendingAction).toBe(CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD);
                                     expect(vitIOUAction?.pendingAction).toBe(CONST.RED_BRICK_ROAD_PENDING_ACTION.ADD);
                                     expect(vitOriginalMessage?.IOUReportID).toBe(vitIOUReport?.reportID);
-                                    expect(vitOriginalMessage?.amount).toBe(amount / 4);
                                     expect(vitOriginalMessage?.comment).toBe(comment);
                                     expect(vitOriginalMessage?.type).toBe(CONST.IOU.REPORT_ACTION_TYPE.CREATE);
                                     expect(Date.parse(vitCreatedAction?.created ?? '')).toBeLessThan(Date.parse(vitIOUAction?.created ?? ''));
@@ -4475,7 +4460,12 @@ describe('actions/IOU', () => {
                     key: `${ONYXKEYS.COLLECTION.REPORT_ACTIONS}${reportID}`,
                     callback: (reportActions) => {
                         Onyx.disconnect(connection);
-                        resolve(Object.values(reportActions ?? {}).find((action) => isActionOfType(action, CONST.REPORT.ACTIONS.TYPE.IOU) && getOriginalMessage(action)?.amount === 200));
+                        resolve(
+                            Object.values(reportActions ?? {})
+                                .filter((action) => isActionOfType(action, CONST.REPORT.ACTIONS.TYPE.IOU))
+                                .sort((a, b) => (a.created ?? '').localeCompare(b.created ?? ''))
+                                .at(-1),
+                        );
                     },
                 });
             });
