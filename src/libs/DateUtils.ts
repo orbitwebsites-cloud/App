@@ -23,7 +23,6 @@ import {
     isThisYear,
     isValid,
     parse,
-    parseISO,
     set,
     startOfDay,
     startOfMonth,
@@ -833,17 +832,20 @@ function getFormattedTransportDateAndHour(date: Date): {date: string; hour: stri
 }
 
 /**
- * Returns a formatted cancellation date.
+ * Returns a formatted cancellation date, preserving the venue's timezone from the ISO string offset.
  * Dates are formatted as follows:
  * 1. When the date refers to the current year: Wednesday, Mar 17 8:00 AM
  * 2. When the date refers not to the current year: Wednesday, Mar 17, 2023 8:00 AM
  */
 function getFormattedCancellationDate(isoDateString: string): string {
-    const date = parseISO(isoDateString);
-    if (isThisYear(date)) {
-        return format(date, 'EEEE, MMM d h:mm a');
+    if (!isoDateString) {
+        return '';
     }
-    return format(date, 'EEEE, MMM d, yyyy h:mm a');
+    const offsetMatch = isoDateString.match(/([+-]\d{2}:\d{2})$/);
+    const venueTimezone = offsetMatch ? offsetMatch[1] : 'UTC';
+    const date = new Date(isoDateString);
+    const pattern = isThisYear(date) ? 'EEEE, MMM d h:mm a' : 'EEEE, MMM d, yyyy h:mm a';
+    return formatInTimeZone(date, venueTimezone, pattern);
 }
 
 /**

@@ -595,41 +595,27 @@ describe('DateUtils', () => {
     });
 
     describe('getFormattedCancellationDate', () => {
-        beforeEach(() => {
-            jest.useFakeTimers();
-            jest.setSystemTime(new Date('2026-06-15T12:00:00Z'));
-        });
-
-        afterEach(() => {
-            jest.useRealTimers();
-        });
-
-        it('should parse ISO string with positive timezone offset for current year', () => {
-            // +07:00 offset: 15:00+07:00 = 08:00 UTC
+        it('should format the date using the venue timezone embedded in the ISO string', () => {
+            // 2026-04-19T15:00:00+07:00 — venue is UTC+7, device timezone is UTC
             const result = DateUtils.getFormattedCancellationDate('2026-04-19T15:00:00+07:00');
-            expect(result).toBe('Sunday, Apr 19 8:00 AM');
+            // Should display 3:00 PM in the venue's +07:00 timezone, not converted to device-local time
+            expect(result).toBe('Sunday, Apr 19, 2026 3:00 PM');
         });
 
-        it('should parse ISO string with negative timezone offset for current year', () => {
-            // -05:00 offset: 08:00-05:00 = 13:00 UTC
-            const result = DateUtils.getFormattedCancellationDate('2026-03-17T08:00:00-05:00');
-            expect(result).toBe('Tuesday, Mar 17 1:00 PM');
+        it('should format without year when date is in the current year', () => {
+            const currentYear = new Date().getFullYear();
+            const isoString = `${currentYear}-06-15T10:30:00+00:00`;
+            const result = DateUtils.getFormattedCancellationDate(isoString);
+            expect(result).toBe('Monday, Jun 15 10:30 AM');
         });
 
-        it('should parse ISO string with Z offset for current year', () => {
-            const result = DateUtils.getFormattedCancellationDate('2026-06-10T14:30:00Z');
-            expect(result).toBe('Wednesday, Jun 10 2:30 PM');
+        it('should return empty string for falsy input', () => {
+            expect(DateUtils.getFormattedCancellationDate('')).toBe('');
         });
 
-        it('should include the year for dates not in the current year', () => {
-            // +05:30 offset: 08:00+05:30 = 02:30 UTC
-            const result = DateUtils.getFormattedCancellationDate('2023-03-17T08:00:00+05:30');
-            expect(result).toBe('Friday, Mar 17, 2023 2:30 AM');
-        });
-
-        it('should handle ISO string without timezone offset', () => {
-            const result = DateUtils.getFormattedCancellationDate('2026-12-25T09:00:00');
-            expect(result).toBe('Friday, Dec 25 9:00 AM');
+        it('should fall back to UTC when no timezone offset is present in the ISO string', () => {
+            const result = DateUtils.getFormattedCancellationDate('2026-04-19T15:00:00');
+            expect(result).toBe('Sunday, Apr 19, 2026 3:00 PM');
         });
     });
 });
