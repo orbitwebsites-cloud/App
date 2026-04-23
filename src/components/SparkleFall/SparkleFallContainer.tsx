@@ -24,7 +24,7 @@ const DELAY_MULTIPLIER = 0.1;
 const SCREEN_HEIGHT_DENOMINATOR = 4.5;
 
 const X0_SPREAD = 0;
-const SPARKLE_COUNT = 80;
+const SPARKLE_COUNT = 60;
 const COLORS = [colors.ice300, colors.ice400, colors.ice500];
 
 const createSparkles = (count: number): SparkleWithKeyId[] => {
