@@ -274,7 +274,7 @@ function getHotelReservations(pnr: Pnr, travelers: PnrTraveler[]): ReservationIt
             numberOfRooms: pnrData.numberOfRooms,
             roomClass: pnrData.room.roomName,
             cancellationPolicy: pnrData.room.cancellationPolicy?.policy ?? null,
-            cancellationDeadline: pnrData.room.cancellationPolicy?.deadline?.iso8601 ?? null,
+            cancellationDeadline: pnrData.room.cancellationPolicy?.deadlineUtc?.iso8601 ?? null,
             confirmations,
             travelerPersonalInfo: {
                 name: getTravelerName(traveler),
