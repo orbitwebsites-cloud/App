@@ -88,14 +88,24 @@ function AgentZeroStatusGate({reportID, children}: React.PropsWithChildren<{repo
     // Server-driven processing label from report name-value pairs (e.g. "Looking up categories...")
     const [serverLabel] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT_NAME_VALUE_PAIRS}${reportID}`, {selector: agentZeroProcessingIndicatorSelector});
 
-    // Coarse proxy for the backend's getManagingAgentByChatID check. If the user has an AM/PM,
-    // the admins room and AM DM are likely managed — backend suppresses the server label there,
-    // so firing the optimistic indicator would leave "Concierge is thinking..." stuck on screen
-    // for the full OPTIMISTIC_TIMEOUT. Cost: a ~1s delay before the label appears in this user's
-    // own Concierge DM (backend still sets it; we just don't render optimistically).
-    const [hasManager] = useOnyx(ONYXKEYS.ACCOUNT, {
-        selector: (account) => !!account?.accountManagerAccountID || !!account?.partnerManagerAccountID,
+    // Coarse proxy for the backend's getManagingAgentByChatID check. Backend treats a chat as
+    // managed when the user's AM/PM is a participant (or it's an admins room they're added to).
+    // If that's the case, the backend suppresses its server label, which would leave an
+    // optimistic "Concierge is thinking..." stuck on screen for the full OPTIMISTIC_TIMEOUT.
+    // We skip the optimistic flip only when the AM/PM is actually in this report's participants
+    // — otherwise Concierge DMs and admins rooms without an AM still render the indicator.
+    const [accountManagerAccountID] = useOnyx(ONYXKEYS.ACCOUNT, {
+        selector: (account) => account?.accountManagerAccountID,
     });
+    const [partnerManagerAccountID] = useOnyx(ONYXKEYS.ACCOUNT, {
+        selector: (account) => account?.partnerManagerAccountID,
+    });
+    const [reportParticipants] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {
+        selector: (report) => report?.participants,
+    });
+    const accountManagerID = accountManagerAccountID ? Number(accountManagerAccountID) : undefined;
+    const hasManagerAsParticipant =
+        (!!accountManagerID && !!reportParticipants?.[accountManagerID]) || (!!partnerManagerAccountID && !!reportParticipants?.[partnerManagerAccountID]);
 
     // Timestamp set when the user sends a message, before the server label arrives — shows "Concierge is thinking..."
     const [optimisticStartTime, setOptimisticStartTime] = useState<number | null>(null);
@@ -247,7 +257,7 @@ function AgentZeroStatusGate({reportID, children}: React.PropsWithChildren<{repo
     }, [optimisticStartTime]);
 
     const kickoffWaitingIndicator = () => {
-        if (hasManager) {
+        if (hasManagerAsParticipant) {
             return;
         }
         setOptimisticStartTime(Date.now());

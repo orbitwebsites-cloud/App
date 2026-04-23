@@ -256,9 +256,10 @@ describe('AgentZeroStatusContext', () => {
             expect(result.current.statusLabel).toBe(serverLabel);
         });
 
-        it('should skip optimistic indicator when user has an account manager', async () => {
-            // Given a Concierge chat and the current user has an AM assigned
+        it('should skip optimistic indicator when the user\'s account manager is a participant of the report', async () => {
+            // Given a Concierge-gated report where the user's AM is a participant (e.g. admins room)
             await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: '42'});
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {42: {}}});
 
             const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
             await waitForBatchedUpdates();
@@ -274,9 +275,10 @@ describe('AgentZeroStatusContext', () => {
             expect(result.current.statusLabel).toBe('');
         });
 
-        it('should skip optimistic indicator when user has a partner manager', async () => {
-            // Given a Concierge chat and the current user has a PM assigned
+        it('should skip optimistic indicator when the user\'s partner manager is a participant of the report', async () => {
+            // Given a Concierge-gated report where the user's PM is a participant
             await Onyx.merge(ONYXKEYS.ACCOUNT, {partnerManagerAccountID: 42});
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {42: {}}});
 
             const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
             await waitForBatchedUpdates();
@@ -288,6 +290,24 @@ describe('AgentZeroStatusContext', () => {
             await waitForBatchedUpdates();
             expect(result.current.isProcessing).toBe(false);
             expect(result.current.statusLabel).toBe('');
+        });
+
+        it('should still fire optimistic indicator when the user has an AM but the AM is not a participant of this report', async () => {
+            // Given the user has an AM, but the current report (e.g. their Concierge DM) doesn't include the AM
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: '42'});
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {1: {}, 2: {}}});
+
+            const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
+            await waitForBatchedUpdates();
+
+            act(() => {
+                result.current.kickoffWaitingIndicator();
+            });
+
+            // Then optimistic should fire normally — chat isn't managed on the backend either
+            await waitForBatchedUpdates();
+            expect(result.current.isProcessing).toBe(true);
+            expect(result.current.statusLabel).toBe('Thinking...');
         });
 
         it('should still fire optimistic indicator when user has no AM/PM', async () => {
