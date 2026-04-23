@@ -258,8 +258,9 @@ describe('AgentZeroStatusContext', () => {
 
         it("should skip optimistic indicator when the user's account manager is a participant of the report", async () => {
             // Given a Concierge-gated report where the user's AM is a participant (e.g. admins room)
-            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: '42'});
-            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {42: {}}});
+            const managerAccountID = 42;
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: String(managerAccountID)});
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {[managerAccountID]: {}}});
 
             const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
             await waitForBatchedUpdates();
@@ -277,8 +278,9 @@ describe('AgentZeroStatusContext', () => {
 
         it("should skip optimistic indicator when the user's partner manager is a participant of the report", async () => {
             // Given a Concierge-gated report where the user's PM is a participant
-            await Onyx.merge(ONYXKEYS.ACCOUNT, {partnerManagerAccountID: 42});
-            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {42: {}}});
+            const managerAccountID = 42;
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {partnerManagerAccountID: managerAccountID});
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {[managerAccountID]: {}}});
 
             const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
             await waitForBatchedUpdates();
@@ -294,8 +296,11 @@ describe('AgentZeroStatusContext', () => {
 
         it('should still fire optimistic indicator when the user has an AM but the AM is not a participant of this report', async () => {
             // Given the user has an AM, but the current report (e.g. their Concierge DM) doesn't include the AM
-            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: '42'});
-            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {1: {}, 2: {}}});
+            const managerAccountID = 42;
+            const otherParticipantID1 = 1;
+            const otherParticipantID2 = 2;
+            await Onyx.merge(ONYXKEYS.ACCOUNT, {accountManagerAccountID: String(managerAccountID)});
+            await Onyx.merge(`${ONYXKEYS.COLLECTION.REPORT}${reportID}`, {participants: {[otherParticipantID1]: {}, [otherParticipantID2]: {}}});
 
             const {result} = renderHook(() => ({...useAgentZeroStatus(), ...useAgentZeroStatusActions()}), {wrapper});
             await waitForBatchedUpdates();
