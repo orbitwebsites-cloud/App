@@ -3,7 +3,7 @@ import Animated, {useAnimatedStyle, useFrameCallback, useSharedValue} from 'reac
 import Icon from '@components/Icon';
 import type IconAsset from '@src/types/utils/IconAsset';
 
-type FallingSparkleData = {
+type ConfettiParticleData = {
     initialPosition: {
         x: number;
         y: number;
@@ -16,14 +16,14 @@ type FallingSparkleData = {
     delay: number;
 };
 
-type FallingSparkleProps = FallingSparkleData & {
+type ConfettiParticleProps = ConfettiParticleData & {
     iconSrc: IconAsset;
 };
 
 const GRAVITY = 30;
 const SPEED = 100;
 
-function FallingSparkle({initialPosition, initialVelocity, color, delay, iconSrc}: FallingSparkleProps) {
+function ConfettiParticle({initialPosition, initialVelocity, color, delay, iconSrc}: ConfettiParticleProps) {
     const translateX = useSharedValue<number>(initialPosition.x);
     const translateY = useSharedValue<number>(initialPosition.y);
 
@@ -35,7 +35,7 @@ function FallingSparkle({initialPosition, initialVelocity, color, delay, iconSrc
         translateX.set(initialPosition.x + initialVelocity.x * time);
     }, false);
 
-    // Start animating after configured delay; stop frame callback after 5 seconds (should be plenty of time)
+    // Start animating after configured delay; stop frame callback after 5 seconds (should be plenty of time for particles to fall off screen)
     useEffect(() => {
         let stopTimer: ReturnType<typeof setTimeout> | undefined;
         const startTimer = setTimeout(() => {
@@ -70,5 +70,5 @@ function FallingSparkle({initialPosition, initialVelocity, color, delay, iconSrc
     );
 }
 
-export default FallingSparkle;
-export type {FallingSparkleData, FallingSparkleProps};
+export default ConfettiParticle;
+export type {ConfettiParticleData, ConfettiParticleProps};

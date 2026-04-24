@@ -3,12 +3,12 @@ import type {Ref} from 'react';
 import {Dimensions, View} from 'react-native';
 import {useMemoizedLazyExpensifyIcons} from '@hooks/useLazyAsset';
 import colors from '@styles/theme/colors';
-import FallingSparkle from './FallingSparkle';
-import type {FallingSparkleData} from './FallingSparkle';
+import ConfettiParticle from './ConfettiParticle';
+import type {ConfettiParticleData} from './ConfettiParticle';
 
-type SparkleWithKeyId = FallingSparkleData & {id: number};
+type ParticleWithKeyId = ConfettiParticleData & {id: number};
 
-type SparkleFallHandle = {
+type ConfettiCannonHandle = {
     trigger: () => void;
 };
 
@@ -18,21 +18,20 @@ const VY_SPREAD = 50;
 
 // Delay parameters so the particles don't all shoot up at once
 const DELAY_SPREAD = 500;
-const DELAY_MULTIPLIER = 0.1;
+const DELAY_MULTIPLIER = 0.2;
 
 // Base initial Y velocity is a function of screen height; this magic number controls that ratio
 const SCREEN_HEIGHT_DENOMINATOR = 4.5;
 
-const X0_SPREAD = 0;
-const SPARKLE_COUNT = 60;
+const PARTICLE_COUNT = 60;
 const COLORS = [colors.ice300, colors.ice400, colors.ice500];
 
-const createSparkles = (count: number): SparkleWithKeyId[] => {
+const createSparkles = (count: number): ParticleWithKeyId[] => {
     const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 
     return Array.from({length: count}, (_, index) => ({
         id: index,
-        initialPosition: {x: screenWidth / 2 + (Math.random() * X0_SPREAD - X0_SPREAD / 2), y: screenHeight},
+        initialPosition: {x: screenWidth / 2, y: screenHeight},
         initialVelocity: {
             x: Math.random() * VX_SPREAD - VX_SPREAD / 2,
             y: -(screenHeight / SCREEN_HEIGHT_DENOMINATOR) + Math.random() * VY_SPREAD - VY_SPREAD / 2,
@@ -42,18 +41,18 @@ const createSparkles = (count: number): SparkleWithKeyId[] => {
     }));
 };
 
-type SparkleFallContainerProps = {
-    ref?: Ref<SparkleFallHandle>;
+type ConfettiCannonContainerProps = {
+    ref?: Ref<ConfettiCannonHandle>;
 };
 
-function SparkleFallContainer({ref}: SparkleFallContainerProps) {
+function ConfettiCannonContainer({ref}: ConfettiCannonContainerProps) {
     const icons = useMemoizedLazyExpensifyIcons(['Sparkles']);
-    const [sparkles, setSparkles] = useState<SparkleWithKeyId[]>([]);
+    const [sparkles, setSparkles] = useState<ParticleWithKeyId[]>([]);
     const [animKey, setAnimKey] = useState(0);
 
     const trigger = useCallback(() => {
         setAnimKey((prev) => prev + 1);
-        setSparkles(createSparkles(SPARKLE_COUNT));
+        setSparkles(createSparkles(PARTICLE_COUNT));
     }, []);
 
     useImperativeHandle(ref, () => ({trigger}), [trigger]);
@@ -64,7 +63,7 @@ function SparkleFallContainer({ref}: SparkleFallContainerProps) {
             pointerEvents="none"
         >
             {sparkles.map((sparkle) => (
-                <FallingSparkle
+                <ConfettiParticle
                     delay={sparkle.delay}
                     key={`${sparkle.id}-${animKey}`}
                     iconSrc={icons.Sparkles}
@@ -77,5 +76,5 @@ function SparkleFallContainer({ref}: SparkleFallContainerProps) {
     );
 }
 
-export default SparkleFallContainer;
-export type {SparkleFallHandle};
+export default ConfettiCannonContainer;
+export type {ConfettiCannonHandle};
