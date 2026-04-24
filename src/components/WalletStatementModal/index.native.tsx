@@ -24,7 +24,7 @@ function WalletStatementModal({statementPageURL}: WalletStatementProps) {
 
     const renderLoading = useCallback(
         () => (
-            <View style={[StyleSheet.absoluteFillObject, styles.fullScreenLoading, styles.w100]}>
+            <View style={[StyleSheet.absoluteFill, styles.fullScreenLoading, styles.w100]}>
                 <View style={styles.w100}>
                     <ActivityIndicator
                         size={CONST.ACTIVITY_INDICATOR_SIZE.LARGE}
