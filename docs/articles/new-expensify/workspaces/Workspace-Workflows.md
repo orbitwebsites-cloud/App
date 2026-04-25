@@ -6,7 +6,7 @@ keywords: [New Expensify, workflows, approval workflows, delay submission, add a
 
 Workflows help you automate how expenses are submitted, approved, and reimbursed in your workspace. Whether you're tracking personal expenses or managing a team, you can adjust workflows to match your use case.
 
-**Note:** Workflows are available on **Collect** and **Control** workspaces. Only **Workspace Admins** can enable and configure them.
+**Note:** Workflows are available on **Collect** and **Control** workspaces. Only **Workspace Admins** can enable and configure them. **Auditors** can view workflow settings in read-only mode but cannot make changes.
 
 ---
 
