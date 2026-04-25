@@ -11,7 +11,7 @@ A **Workspace member** is anyone added to a workspace with one of the following 
 
 - **Member** – Can submit and/or approve expenses.
 - **Admin** – Can manage members, roles, workflows, and settings.
-- **Auditor** – Can view and comment on reports but cannot make changes.
+- **Auditor** – Can view and comment on reports, and has read-only access to all workspace editor pages (Overview, Members, Workflows, Categories, Tags, etc.). Auditors cannot change workspace configuration or take operational workflow actions such as approving, paying, or taking control of reports.
 
 ---
 

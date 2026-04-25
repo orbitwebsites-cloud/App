@@ -8,6 +8,8 @@ Each Expensify workspace can be configured to require additional approvals for r
 
 Once a member submits a report, it must be approved by each person in their workflow before it can be paid. You can also add an additional approver that is only required when a report exceeds a specific dollar amount.
 
+**Note:** **Auditors** can view approval workflows in read-only mode but cannot create, edit, or delete them.
+
 ---
 
 # Enable Approvals for a Workspace

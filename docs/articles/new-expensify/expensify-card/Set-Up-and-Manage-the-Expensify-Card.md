@@ -16,7 +16,9 @@ Workspace Admins can enable and issue Expensify Visa® Commercial Cards to manag
 - Spend restrictions by employee and merchant
 - Real-time visibility and cash back rewards
 
-**Prerequisites:** You must be a workspace admin and have a U.S. business bank account connected to Expensify. See this guide on [connecting a business bank account](https://help.expensify.com/articles/new-expensify/wallet-and-payments/Connect-a-Business-Bank-Account).
+**Prerequisites:** You must be a Workspace Admin and have a U.S. business bank account connected to Expensify. See this guide on [connecting a business bank account](https://help.expensify.com/articles/new-expensify/wallet-and-payments/Connect-a-Business-Bank-Account).
+
+**Note:** **Auditors** can view the Expensify Card page in read-only mode but cannot issue, freeze, or manage cards.
 
 ---
 
