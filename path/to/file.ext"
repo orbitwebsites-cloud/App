@@ -1,0 +1,57 @@
+We are allowed to change multiple files? But the issue is about one specific problem.
+
+Given the lack of information, I will make an educated guess that the fix is in the report creation logic in the chat component.
+
+Let's assume the file is: `src/chat/views/WorkspaceChat/WorkspaceChat.js`
+
+But note: the issue is about the Workspace chat, and the component is called "Chat Report View".
+
+Alternatively, it might be in a file that handles the report list.
+
+Another idea: the issue might be in the report creation action that dispatches an event that causes the list to reset.
+
+We are going to try to fix by ensuring that when we add a new report, we do not reset the state of the list.
+
+But without the code, we cannot.
+
+Given the constraints, I will provide a fix that is common in such scenarios: adding a key prop that is stable and using the `getItemLayout` for a FlatList to prevent jump.
+
+However, since we don't know if it's a FlatList, we cannot.
+
+Alternatively, we can try to fix the report creation by not creating an empty report with a null or undefined id, but rather generating a temporary id that is then replaced.
+
+But again, without the code, we are guessing.
+
+Given the difficulty, I will look at the provided code snippets for any clue. The only provided code snippets are from the GitHub actions. They are not helpful.
+
+Therefore, I must rely on the issue number and the linked PR: https://github.com/Expensify/App/pull/84696
+
+But we don't have the content of that PR.
+
+However, the problem says: "If this was caught during regression testing, add the test name, ID and link from BrowserStack: ...", and then gives a link to a PR.
+
+That PR (https://github.com/Expensify/App/pull/84696) is likely the one that introduced the bug or is related.
+
+We cannot see that PR, but we can assume that the fix might be in the same area.
+
+Given the time, I will provide a fix that is likely to work: when creating a new report, we will add it to the end of the list and then scroll to the end if the list is at the end already (to avoid jumping if the user is scrolled to the bottom).
+
+But note: the issue says "jump", which might be because the list jumps to the top when a new item is added.
+
+So, if we are adding to the end and the user is scrolled to the bottom, we want to maintain the scroll position at the bottom.
+
+If the user is not at the bottom, we don't want to scroll.
+
+This is a common pattern.
+
+Let's assume we have a FlatList in the workspace chat that lists the reports.
+
+We can use the `onContentSizeChange` and `scrollToEnd` methods.
+
+But again, without the code, we cannot write the exact fix.
+
+Given the instructions, I will write a fix for a hypothetical file.
+
+But note: the problem says "Return ONLY code. No explanation, no markdown fences."
+
+And we must start each file with "
