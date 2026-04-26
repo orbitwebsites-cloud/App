@@ -12,6 +12,7 @@ import {approveMoneyRequest} from '@userActions/IOU/ReportWorkflow';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
 import type {PaymentMethodType} from '@src/types/onyx/OriginalMessage';
+import type {PersonalDetailsList} from '@src/types/onyx/PersonalDetails';
 
 type ApproveActionButtonProps = {
     iouReportID: string | undefined;
@@ -22,60 +23,44 @@ type ApproveActionButtonProps = {
 
 function ApproveActionButton({iouReportID, startApprovedAnimation, onHoldMenuOpen, shouldShowPayButton}: ApproveActionButtonProps) {
     const {translate} = useLocalize();
-    const currentUserDetails = useCurrentUserPersonalDetails();
-    const currentUserAccountID = currentUserDetails.accountID;
-    const currentUserEmail = currentUserDetails.email ?? '';
-    const {isBetaEnabled} = usePermissions();
-    const {isDelegateAccessRestricted} = useDelegateNoAccessState();
-    const {showDelegateNoAccessModal} = useDelegateNoAccessActions();
+    const {canApprove} = usePermissions();
+    const [report] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${iouReportID}`);
+    const [policy] = usePolicy(report?.policyID);
+    const [delegateEmail] = useOnyx(ONYXKEYS.SESSION.delegateEmail);
+    const currentUserPersonalDetails = useCurrentUserPersonalDetails();
+    const [personalDetailsList] = useOnyx<PersonalDetailsList>(ONYXKEYS.PERSONAL_DETAILS_LIST);
+    const {isDelegateAccess} = useDelegateNoAccessState();
 
-    const [activePolicyID] = useOnyx(ONYXKEYS.NVP_ACTIVE_POLICY_ID);
-    const activePolicy = usePolicy(activePolicyID);
-    const [iouReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${iouReportID}`);
-    const [expenseReportPolicy] = useOnyx(`${ONYXKEYS.COLLECTION.POLICY}${iouReport?.policyID}`);
-    const [userBillingGracePeriodEnds] = useOnyx(ONYXKEYS.COLLECTION.SHARED_NVP_PRIVATE_USER_BILLING_GRACE_PERIOD_END);
-    const [iouReportNextStep] = useOnyx(`${ONYXKEYS.COLLECTION.NEXT_STEP}${iouReportID}`);
-    const [amountOwed] = useOnyx(ONYXKEYS.NVP_PRIVATE_AMOUNT_OWED);
-    const [ownerBillingGracePeriodEnd] = useOnyx(ONYXKEYS.NVP_PRIVATE_OWNER_BILLING_GRACE_PERIOD_END);
-    const [transactionViolations] = useOnyx(ONYXKEYS.COLLECTION.TRANSACTION_VIOLATIONS);
-    const [betas] = useOnyx(ONYXKEYS.BETAS);
-    const [delegateEmail] = useOnyx(ONYXKEYS.ACCOUNT, {selector: delegateEmailSelector});
+    if (!canApprove || !report || !iouReportID || !policy) {
+        return null;
+    }
 
-    const isASAPSubmitBetaEnabled = isBetaEnabled(CONST.BETAS.ASAP_SUBMIT);
-    const hasViolations = hasViolationsReportUtils(iouReport?.reportID, transactionViolations, currentUserAccountID, currentUserEmail);
+    const isCurrentUserSubmitter = currentUserPersonalDetails.accountID === report.managerID || delegateEmail === report.managerID;
+    const hasHeldExpenses = hasHeldExpensesReportUtils(report);
+    const hasViolations = hasViolationsReportUtils(report);
+    const shouldShowHoldMenu = hasHeldExpenses || hasViolations;
 
-    const confirmApproval = () => {
-        if (isDelegateAccessRestricted) {
-            showDelegateNoAccessModal();
-        } else if (hasHeldExpensesReportUtils(iouReport?.reportID)) {
-            onHoldMenuOpen(CONST.IOU.REPORT_ACTION_TYPE.APPROVE, undefined, shouldShowPayButton);
-        } else {
-            approveMoneyRequest({
-                expenseReport: iouReport,
-                expenseReportPolicy,
-                policy: activePolicy,
-                currentUserAccountIDParam: currentUserAccountID,
-                currentUserEmailParam: currentUserEmail,
-                hasViolations,
-                isASAPSubmitBetaEnabled,
-                expenseReportCurrentNextStepDeprecated: iouReportNextStep,
-                betas,
-                userBillingGracePeriodEnds,
-                amountOwed,
-                ownerBillingGracePeriodEnd,
-                full: true,
-                onApproved: startApprovedAnimation,
-                delegateEmail,
-            });
+    const handleApprovePress = () => {
+        if (shouldShowHoldMenu) {
+            onHoldMenuOpen(CONST.IOU.REQUEST_TYPE.MONEY_REQUEST, undefined, shouldShowPayButton);
+            return;
         }
+
+        const {total, unheldTotal} = getNonHeldAndFullAmount(report, shouldShowPayButton);
+        approveMoneyRequest(iouReportID, total, unheldTotal, startApprovedAnimation);
     };
+
+    if (isDelegateAccess && !isCurrentUserSubmitter) {
+        return null;
+    }
 
     return (
         <Button
-            text={translate('iou.approve')}
             success
-            onPress={confirmApproval}
-            sentryLabel={CONST.SENTRY_LABEL.REPORT_PREVIEW.APPROVE_BUTTON}
+            onPress={handleApprovePress}
+            text={translate('common.approve')}
+            style={[{marginBottom: 8}]}
+            pressOnEnter
         />
     );
 }
