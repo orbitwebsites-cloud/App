@@ -1,0 +1,68 @@
+.transactionRow {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    padding: 12px 20px;
+    border-bottom: 1px solid #F2F2F2;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.transactionRow:hover {
+    background-color: #F5F5F5;
+}
+
+.transactionRow:active {
+    background-color: #ECECEC;
+}
+
+.transactionRow .chevronCell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    flex-shrink: 0;
+}
+
+.transactionRow .chevronCell .icon {
+    width: 20px;
+    height: 20px;
+    color: #999;
+    transition: transform 0.2s ease;
+}
+
+.transactionRow:hover .chevronCell .icon {
+    color: #333;
+    transform: translateX(2px);
+}
+
+.transactionRow .contentCell {
+    flex: 1;
+    min-width: 0;
+    padding: 0 12px;
+}
+
+.transactionRow .contentCell .title {
+    font-weight: 600;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 4px;
+}
+
+.transactionRow .contentCell .description {
+    font-size: 13px;
+    color: #999;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.transactionRow .amountCell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 80px;
+    font-weight: 600;
+    font-size: 15px;
+    color: #333;
+}
