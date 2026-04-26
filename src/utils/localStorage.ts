@@ -1,3 +1,4 @@
+// File: src/utils/localStorage.ts
 import { LocalChat } from '../components/ChatSwitcher';
 
 const fetchLocalChatsFromCache = async (): Promise<LocalChat[]> => {
