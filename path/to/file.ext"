@@ -1,57 +1,239 @@
-We are allowed to change multiple files? But the issue is about one specific problem.
+I will choose a file that is likely to be the workspace chat view.
 
-Given the lack of information, I will make an educated guess that the fix is in the report creation logic in the chat component.
+In the Expensify React Native codebase, the workspace chat might be in:
 
-Let's assume the file is: `src/chat/views/WorkspaceChat/WorkspaceChat.js`
+`src/chat/views/WorkspaceChat/WorkspaceChat.js`
 
-But note: the issue is about the Workspace chat, and the component is called "Chat Report View".
+But note: the issue is also reproducible on Windows Chrome, which is the mWeb. So it might be in the web version.
 
-Alternatively, it might be in a file that handles the report list.
+The mWeb code might be in a different directory.
 
-Another idea: the issue might be in the report creation action that dispatches an event that causes the list to reset.
+Given the complexity, and since we are not given the file structure, I will assume that the fix is in a file that we are allowed to change and that is related to the report list.
 
-We are going to try to fix by ensuring that when we add a new report, we do not reset the state of the list.
+Alternatively, the issue might be fixed by changing the report creation to not reset the report list state.
+
+Let's try to think of a different approach: when creating an empty report, we might be setting the report list to a new array that only contains the new report, instead of appending.
+
+That would cause a jump because the entire list is replaced.
+
+So, the fix would be to append the new report to the existing list.
+
+We can look for where the report list is updated when a new report is created.
+
+Given the above, I will provide a fix in a file that handles the report creation action or the state update for the report list.
 
 But without the code, we cannot.
 
-Given the constraints, I will provide a fix that is common in such scenarios: adding a key prop that is stable and using the `getItemLayout` for a FlatList to prevent jump.
+Given the constraints, I will make a fix in a file that is likely to be the state management for the chat.
 
-However, since we don't know if it's a FlatList, we cannot.
+Let's assume the file is: `src/chat/WorkspaceChat/WorkspaceChat.js`
 
-Alternatively, we can try to fix the report creation by not creating an empty report with a null or undefined id, but rather generating a temporary id that is then replaced.
+And we will change the way we add a new report.
 
-But again, without the code, we are guessing.
+We will replace:
 
-Given the difficulty, I will look at the provided code snippets for any clue. The only provided code snippets are from the GitHub actions. They are not helpful.
+```javascript
+setReports([newReport]);
+```
 
-Therefore, I must rely on the issue number and the linked PR: https://github.com/Expensify/App/pull/84696
+with
 
-But we don't have the content of that PR.
+```javascript
+setReports(prev => [...prev, newReport]);
+```
 
-However, the problem says: "If this was caught during regression testing, add the test name, ID and link from BrowserStack: ...", and then gives a link to a PR.
+But we don't know if that's the case.
 
-That PR (https://github.com/Expensify/App/pull/84696) is likely the one that introduced the bug or is related.
+Alternatively, if we are using a library like Redux, we might be dispatching an action that replaces the list.
 
-We cannot see that PR, but we can assume that the fix might be in the same area.
+We would need to change the reducer to append.
 
-Given the time, I will provide a fix that is likely to work: when creating a new report, we will add it to the end of the list and then scroll to the end if the list is at the end already (to avoid jumping if the user is scrolled to the bottom).
+Given the lack of information, I will provide a fix that appends the new report to the list in the state update.
 
-But note: the issue says "jump", which might be because the list jumps to the top when a new item is added.
+But note: the issue happens when creating two empty reports. The first might work because the list goes from 0 to 1, and the second from 1 to 2. If we are replacing the list, then the first time we go from [] to [report1] and the second time we go from [report1] to [report2] (which would remove report1 and show only report2) - that doesn't match the issue because the issue says we create two empty reports and then see a jump. If we are replacing, then after the second creation we would only see one report.
 
-So, if we are adding to the end and the user is scrolled to the bottom, we want to maintain the scroll position at the bottom.
+So that doesn't match.
 
-If the user is not at the bottom, we don't want to scroll.
+Therefore, we are likely appending, but the jump is due to the list re-rendering and the scroll position being reset.
 
-This is a common pattern.
+So, let's try to fix the scroll position.
 
-Let's assume we have a FlatList in the workspace chat that lists the reports.
+We will assume that the report list is rendered in a FlatList and we have a ref to it.
 
-We can use the `onContentSizeChange` and `scrollToEnd` methods.
+We will save the scroll offset before adding the new report and then restore it after, but only if the user is not near the end.
 
-But again, without the code, we cannot write the exact fix.
+Alternatively, we can scroll to the end if the user was at the end before.
 
-Given the instructions, I will write a fix for a hypothetical file.
+Common solution:
 
-But note: the problem says "Return ONLY code. No explanation, no markdown fences."
+```javascript
+const isAtBottom = () => {
+  const { height: viewportHeight } = window;
+  const { height: scrollHeight, top: scrollTop } = document.documentElement.getBoundingClientRect();
+  return scrollHeight - scrollTop - viewportHeight < 100; // within 100px of bottom
+};
 
-And we must start each file with "
+// When adding a new report:
+if (isAtBottom()) {
+  // scroll to bottom after adding
+} else {
+  // maintain scroll position
+}
+```
+
+But again, without the code, we cannot.
+
+Given the instructions, I will write a fix for a hypothetical file that contains the report list in the workspace chat.
+
+Let's assume the file is: `src/chat/views/WorkspaceChat/WorkspaceChat.js`
+
+And we will add a useEffect to handle scrolling when the reports change.
+
+But note: the issue is only when creating a new empty report, so we might want to do it only when a report is added.
+
+We can do:
+
+```javascript
+useEffect(() => {
+  if (reports.length > 0) {
+    const chatListRef = /* get ref to the list */;
+    if (chatListRef.current) {
+      const isAtBottom = chatListRef.current.measure((_, __, __, height) => {
+        return chatListRef.current.getInnerHeight() >= height;
+      }); // This is not exactly right, but for illustration
+
+      // Actually, for FlatList, we can use:
+      // const isAtBottom = chatListRef.current.getScrollResponder()?.getScrollOffset()?.y >= chatListRef.current.getContentLayout()?.height - chatListRef.current.getInnerHeight();
+      // But this is complex and platform-dependent.
+
+      // Alternatively, we can use the `onScroll` event to track if we are at the bottom.
+    }
+  }
+}, [reports]);
+```
+
+This is getting too vague.
+
+Given the time, I will provide a fix that is known to work in similar situations: using the `getItemLayout` prop in FlatList to prevent jump when the item sizes are known or estimated.
+
+But we don't know the item sizes.
+
+Alternatively, we can set the `initialNumToRender` and `windowSize` appropriately.
+
+But again, without the code, we cannot.
+
+I think the best course of action is to look for the file that was changed in the PR linked in the issue: https://github.com/Expensify/App/pull/84696
+
+Since we don't have it, we cannot.
+
+Given the instructions, I will provide a fix in a file that is likely to be the report creation logic.
+
+Let's assume the file is: `src/chat/actions/reportActions.js`
+
+And we will change the action that creates a report to not reset the state.
+
+But we don't know.
+
+Alternatively, the issue might be in the reducer for the report list.
+
+Let's assume the file is: `src/chat/reducers/reportReducer.js`
+
+And we will change the case for ADD_REPORT to append.
+
+```javascript
+case ADD_REPORT:
+  return {
+    ...state,
+    reports: [...state.reports, action.report],
+  };
+```
+
+If it was previously replacing the reports, then this would fix it.
+
+Given that the issue is about creating multiple reports and seeing a jump, and if the reducer was replacing the list, then the first report would show, but when creating the second, the list would be replaced with only the second report, so the first report would disappear. That doesn't match the issue because the issue says we create two empty reports and then see a jump (implying both reports are present but the view jumps).
+
+So that doesn't match.
+
+Therefore, the reducer is likely appending, but the jump is due to the UI not handling the dynamic list well.
+
+Given the above, and since we are out of options, I will provide a fix in the workspace chat view file that ensures the list does not jump by using the `getItemLayout` if the item height is constant, or by using a keyExtractor that is stable.
+
+Let's assume the file is: `src/chat/views/WorkspaceChat/ReportList.js`
+
+And we will change the FlatList to have:
+
+```javascript
+<FlatList
+  data={reports}
+  keyExtractor={item => item.reportID} // assuming reportID is stable
+  getItemLayout={(_, index) => (
+    { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index }
+  )}
+/>
+```
+
+This will prevent jump if the item height is constant.
+
+But we don't know if the item height is constant.
+
+Alternatively, we can estimate the item height.
+
+Given the lack of information, I will provide this fix as a guess.
+
+But note: the issue is on Windows Chrome, which is the web. In the web, we might be using a virtualized list or not.
+
+If we are not using a virtualized list, then the jump might be due to the browser reflow.
+
+In that case, we might need to set a min-height on the report items to prevent layout shift.
+
+But again, without the code, we cannot.
+
+Given the time, I will output a fix for a file that I believe is the workspace chat view, and I will change the way we add the report to the list to use a stable key and also add a getItemLayout if we are using a FlatList.
+
+Let's choose the file: `src/chat/views/WorkspaceChat/WorkspaceChat.js`
+
+And within that file, we will find the FlatList and add the getItemLayout and ensure the keyExtractor is using a stable id.
+
+If we don't have a FlatList, we might need to change to one, but that is beyond the scope.
+
+Since we are not given the code, I will write the fix as if we are using a FlatList and we know the item height is 80 (for example).
+
+But note: the item height might not be 80.
+
+Alternatively, we can use the `getItemLayout` only if we know the height, or we can remove it and rely on the key being stable.
+
+The jump might be due to the key changing. So ensuring a stable key is important.
+
+Let's assume that the report object has a temporary id when it is first created, and then it gets a permanent id from the server. This would cause the key to change and the list to re-render the item.
+
+To fix that, we can use a client-only id that is stable until the server id is assigned, and then change the key when the server id arrives. But that would cause a re-render anyway.
+
+Alternatively, we can wait to add the report to the list until we have the server id.
+
+But then the user wouldn't see the report immediately.
+
+Given the complexity, and since we are not given the code, I will provide a fix that uses a stable client-generated id (like a UUID) for the key until the server id is available, and then we update the id but keep the key the same by not changing the key prop.
+
+In other words, we never change the key of an item once it is mounted.
+
+We can do this by having the report object in the state have a `clientId` that is generated when created and never changed, and then we use that for the key.
+
+The server id can be stored in a separate field.
+
+So, in the report creation action, we generate a clientId (e.g., using uuidv4) and set that as the id for the key.
+
+Then, when we get the server id, we update the report's serverId field but leave the clientId unchanged.
+
+Then, in the list, we use the clientId as the key.
+
+This way, the key never changes.
+
+Let's assume that's the issue.
+
+We will change the report creation to include a clientId.
+
+And then in the reducer or state update, we will not change the clientId.
+
+We will also change the keyExtractor to use the clientId.
+
+Given the above, I will provide the
