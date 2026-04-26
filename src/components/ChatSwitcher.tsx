@@ -1,3 +1,4 @@
+// File: src/components/ChatSwitcher.tsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -31,7 +32,10 @@ const ChatSwitcher: React.FC<ChatSwitcherProps> = ({ query }) => {
 
   useEffect(() => {
     const fetchServerChats = async () => {
-      if (query.trim() === '') return;
+      if (query.trim() === '') {
+        setServerChats([]);
+        return;
+      }
       setLoading(true);
       try {
         const response = await axios.get('/api/chats', {
@@ -40,6 +44,7 @@ const ChatSwitcher: React.FC<ChatSwitcherProps> = ({ query }) => {
         setServerChats(response.data);
       } catch (error) {
         console.error(error);
+        setServerChats([]);
       } finally {
         setLoading(false);
       }
@@ -67,6 +72,14 @@ const ChatSwitcher: React.FC<ChatSwitcherProps> = ({ query }) => {
       )}
     </div>
   );
+};
+
+// Mock function to simulate fetching from cache
+const fetchLocalChatsFromCache = async (): Promise<LocalChat[]> => {
+  return [
+    { id: 1, name: 'Team Chat' },
+    { id: 2, name: 'General' },
+  ];
 };
 
 export default ChatSwitcher;
