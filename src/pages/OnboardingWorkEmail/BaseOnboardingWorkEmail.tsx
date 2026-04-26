@@ -20,252 +20,200 @@ import useLocalize from '@hooks/useLocalize';
 import useNetwork from '@hooks/useNetwork';
 import useOnboardingStepCounter from '@hooks/useOnboardingStepCounter';
 import useOnyx from '@hooks/useOnyx';
-import useResponsiveLayout from '@hooks/useResponsiveLayout';
+import useTheme from '@hooks/useTheme';
 import useThemeStyles from '@hooks/useThemeStyles';
-import {isMobileSafari} from '@libs/Browser';
-import {addErrorMessage} from '@libs/ErrorUtils';
-import getOperatingSystem from '@libs/getOperatingSystem';
+import * as ErrorUtils from '@libs/ErrorUtils';
 import Navigation from '@libs/Navigation/Navigation';
-import {AddWorkEmail} from '@userActions/Session';
-import {setOnboardingErrorMessage, setOnboardingMergeAccountStepValue} from '@userActions/Welcome';
+import * as Session from '@userActions/Session';
 import CONST from '@src/CONST';
-import type {TranslationPaths} from '@src/languages/types';
-import Log from '@src/libs/Log';
 import ONYXKEYS from '@src/ONYXKEYS';
 import ROUTES from '@src/ROUTES';
-import SCREENS from '@src/SCREENS';
-import INPUT_IDS from '@src/types/form/OnboardingWorkEmailForm';
-import type IconAsset from '@src/types/utils/IconAsset';
-import type {BaseOnboardingWorkEmailProps} from './types';
+import type {TranslationPaths} from '@src/languages/types';
+import type {OnboardingWorkEmailProps} from './types';
 
-type Item = {
-    icon: IconAsset;
-    titleTranslationKey: TranslationPaths;
-    shouldRenderEmail?: boolean;
-};
-
-function BaseOnboardingWorkEmail({shouldUseNativeStyles}: BaseOnboardingWorkEmailProps) {
-    const styles = useThemeStyles();
+function BaseOnboardingWorkEmail({route, shouldUseNativeStyles = false}: OnboardingWorkEmailProps) {
     const {translate} = useLocalize();
-    const illustrations = useMemoizedLazyIllustrations(['EnvelopeReceipt', 'Gears', 'Profile']);
-    const [onboardingValues] = useOnyx(ONYXKEYS.NVP_ONBOARDING);
-    const [session] = useOnyx(ONYXKEYS.SESSION);
-    const [formValue] = useOnyx(ONYXKEYS.FORMS.ONBOARDING_WORK_EMAIL_FORM);
-    const workEmail = formValue?.[INPUT_IDS.ONBOARDING_WORK_EMAIL];
-    const [onboardingErrorMessage] = useOnyx(ONYXKEYS.ONBOARDING_ERROR_MESSAGE_TRANSLATION_KEY);
-    const isVsb = onboardingValues && 'signupQualifier' in onboardingValues && onboardingValues.signupQualifier === CONST.ONBOARDING_SIGNUP_QUALIFIERS.VSB;
-    const isSmb = onboardingValues?.signupQualifier === CONST.ONBOARDING_SIGNUP_QUALIFIERS.SMB;
-    const {onboardingIsMediumOrLargerScreenWidth} = useResponsiveLayout();
-    const {inputCallbackRef} = useAutoFocusInput();
-    const [shouldValidateOnChange, setShouldValidateOnChange] = useState(false);
-    const {isOffline} = useNetwork();
-    const ICON_SIZE = 48;
-    const operatingSystem = getOperatingSystem();
+    const styles = useThemeStyles();
+    const theme = useTheme();
     const isFocused = useIsFocused();
-    const onboardingStep = useOnboardingStepCounter(SCREENS.ONBOARDING.WORK_EMAIL);
+    const {inputCallbackRef} = useAutoFocusInput();
+    const [onboardingStepCounter] = useOnyx(ONYXKEYS.ONBOARDING_STEP_COUNTER);
+    const [onboardingData] = useOnyx(ONYXKEYS.ONBOARDING_DATA);
+    const [onboardingErrorMessage, setOnboardingErrorMessage] = useOnyx(ONYXKEYS.ONBOARDING_ERROR_MESSAGE);
+    const [isMergingAccountBlocked, setIsMergingAccountBlocked] = useOnyx(ONYXKEYS.IS_MERGING_ACCOUNT_BLOCKED);
+    const {isOffline} = useNetwork();
+    const [email, setEmail] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isEmailValid, setIsEmailValid] = useState(true);
+    const {isAnonymousUser} = useOnyx(ONYXKEYS.SESSION);
+    const {nextScreen} = route.params ?? {};
 
-    useEffect(() => {
-        setOnboardingErrorMessage(null);
+    const onyxError = ErrorUtils.getLatestOnyxError(ONYXKEYS.NVP_ONBOARDING);
+    const hasError = Boolean(onyxError?.message || onboardingErrorMessage);
+
+    const onboardingIllustrations = useMemoizedLazyIllustrations('onboarding-illustrations');
+
+    const validateEmail = useCallback((value: string): boolean => {
+        const trimmedValue = value.trim();
+        const isValid = Str.isValidEmail(trimmedValue) && !PUBLIC_DOMAINS_SET.has(trimmedValue.split('@')[1]?.toLowerCase());
+        setIsEmailValid(isValid);
+        return isValid;
     }, []);
 
+    const onSubmit = useCallback(() => {
+        if (!validateEmail(email)) {
+            return;
+        }
+
+        setIsSubmitting(true);
+        Session.addWorkEmail(email)
+            .then((response) => {
+                if (response?.jsonCode === CONST.JSON_CODE.SUCCESS) {
+                    setIsMergingAccountBlocked(false);
+                    setOnboardingErrorMessage('');
+                    Navigation.navigate(nextScreen ?? ROUTES.SETTINGS_PROFILE);
+                } else {
+                    // Only set the specific error message if it's provided by the backend
+                    const errorMessage = response?.message;
+                    if (errorMessage && typeof errorMessage === 'string') {
+                        setOnboardingErrorMessage(errorMessage);
+                    } else {
+                        setOnboardingErrorMessage('onboarding.purpose.error');
+                    }
+                    setIsMergingAccountBlocked(true);
+                }
+            })
+            .catch((error) => {
+                console.error('[OnboardingWorkEmail] Error adding work email', error);
+                setOnboardingErrorMessage('onboarding.purpose.error');
+                setIsMergingAccountBlocked(true);
+            })
+            .finally(() => {
+                setIsSubmitting(false);
+            });
+    }, [email, validateEmail, nextScreen, setIsMergingAccountBlocked, setOnboardingErrorMessage]);
+
+    const clearErrorAndNavigateBack = useCallback(() => {
+        setOnboardingErrorMessage('');
+        Navigation.goBack();
+    }, [setOnboardingErrorMessage]);
+
     useEffect(() => {
-        if (onboardingValues?.shouldValidate === undefined && onboardingValues?.isMergeAccountStepCompleted === undefined) {
-            return;
-        }
-        setOnboardingErrorMessage(null);
-
-        if (onboardingValues?.shouldValidate) {
-            Navigation.navigate(ROUTES.ONBOARDING_WORK_EMAIL_VALIDATION.getRoute());
-            return;
-        }
-        // Once we verify that shouldValidate is false, we need to force replace the screen
-        // so that we don't navigate back on back button press
-        if (isVsb) {
-            Navigation.navigate(ROUTES.ONBOARDING_ACCOUNTING.getRoute(), {forceReplace: true});
+        if (!isFocused) {
             return;
         }
 
-        if (isSmb) {
-            Navigation.navigate(ROUTES.ONBOARDING_EMPLOYEES.getRoute(), {forceReplace: true});
-            return;
+        // Clear any previous error when navigating back to this screen
+        setOnboardingErrorMessage('');
+        setIsMergingAccountBlocked(false);
+    }, [isFocused, setOnboardingErrorMessage, setIsMergingAccountBlocked]);
+
+    const headerTitle = translate('common.workEmail');
+    const subtitle = translate('onboarding.enterWorkEmail');
+    const submitButtonText = translate('common.continue');
+    const emailInputLabel = translate('common.workEmail');
+    const errorContent = useMemo(() => {
+        if (!hasError) {
+            return null;
         }
 
-        if (!onboardingValues?.isMergeAccountStepSkipped) {
-            Navigation.navigate(ROUTES.ONBOARDING_PRIVATE_DOMAIN.getRoute(), {forceReplace: true});
-            return;
+        // If we have a specific backend message that includes "Two-Factor Authentication (2FA)", show a tailored message
+        if (onboardingErrorMessage?.includes('Two-Factor Authentication (2FA)')) {
+            return (
+                <Text style={[styles.formError, styles.mt2]}>
+                    {onboardingErrorMessage}
+                </Text>
+            );
         }
 
-        Navigation.navigate(ROUTES.ONBOARDING_PURPOSE.getRoute(), {forceReplace: true});
-    }, [onboardingValues?.shouldValidate, isVsb, isSmb, isFocused, onboardingValues?.isMergeAccountStepCompleted, onboardingValues?.isMergeAccountStepSkipped]);
-
-    const submitWorkEmail = useCallback((values: FormOnyxValues<typeof ONYXKEYS.FORMS.ONBOARDING_WORK_EMAIL_FORM>) => {
-        AddWorkEmail(values[INPUT_IDS.ONBOARDING_WORK_EMAIL].trim());
-    }, []);
-
-    const validate = (values: FormOnyxValues<typeof ONYXKEYS.FORMS.ONBOARDING_WORK_EMAIL_FORM>) => {
-        if (!shouldValidateOnChange) {
-            setShouldValidateOnChange(true);
-        }
-        const userEmail = values[INPUT_IDS.ONBOARDING_WORK_EMAIL].trim();
-
-        const errors = {};
-        const emailParts = userEmail.split('@');
-        const domain = emailParts.at(1) ?? '';
-
-        if (session?.email && userEmail.toLowerCase() === session.email.toLowerCase() && !isOffline) {
-            addErrorMessage(errors, INPUT_IDS.ONBOARDING_WORK_EMAIL, translate('onboarding.workEmailValidationError.sameAsSignupEmail'));
-        } else if ((!Str.isValidEmail(userEmail) || PUBLIC_DOMAINS_SET.has(domain.toLowerCase())) && !isOffline) {
-            Log.hmmm('User is trying to add an invalid work email', {userEmail, domain});
-            addErrorMessage(errors, INPUT_IDS.ONBOARDING_WORK_EMAIL, translate('onboarding.workEmailValidationError.publicEmail'));
-        }
-
-        if (isOffline ?? false) {
-            addErrorMessage(errors, INPUT_IDS.ONBOARDING_WORK_EMAIL, translate('onboarding.workEmailValidationError.offline'));
-        }
-
-        return errors;
-    };
-
-    const section: Item[] = useMemo(
-        () => [
-            {
-                icon: illustrations.EnvelopeReceipt,
-                titleTranslationKey: 'onboarding.workEmail.explanationModal.descriptionOne',
-                shouldRenderEmail: true,
-            },
-            {
-                icon: illustrations.Profile,
-                titleTranslationKey: 'onboarding.workEmail.explanationModal.descriptionTwo',
-            },
-            {
-                icon: illustrations.Gears,
-                titleTranslationKey: 'onboarding.workEmail.explanationModal.descriptionThree',
-            },
-        ],
-        [illustrations.EnvelopeReceipt, illustrations.Profile, illustrations.Gears],
-    );
+        // Otherwise, fall back to generic error
+        const errorMessageKey = (onboardingErrorMessage ?? 'onboarding.purpose.error') as TranslationPaths;
+        return (
+            <Text style={[styles.formError, styles.mt2]}>
+                {translate(errorMessageKey)}
+            </Text>
+        );
+    }, [hasError, onboardingErrorMessage, styles, translate]);
 
     return (
         <ScreenWrapper
-            shouldEnableMaxHeight={!isMobileSafari()}
-            shouldAvoidScrollOnVirtualViewport={!isMobileSafari()}
-            includeSafeAreaPaddingBottom
-            testID="BaseOnboardingWorkEmail"
-            style={[styles.defaultModalContainer, shouldUseNativeStyles && styles.pt8]}
+            includeSafeAreaPaddingBottom={false}
+            style={[styles.defaultModalContainer]}
+            testID={BaseOnboardingWorkEmail.displayName}
+            shouldEnableMaxWidth
         >
             <HeaderWithBackButton
-                stepCounter={onboardingStep?.stepCounter}
-                progressBarPercentage={onboardingStep?.progressBarPercentage}
-                shouldShowBackButton={false}
-                shouldDisplayHelpButton={false}
+                title={headerTitle}
+                onBackButtonPress={clearErrorAndNavigateBack}
             />
-            {onboardingValues?.isMergingAccountBlocked ? (
-                <View style={[styles.flex1, onboardingIsMediumOrLargerScreenWidth && styles.mt5, onboardingIsMediumOrLargerScreenWidth ? styles.mh8 : styles.mh5]}>
-                    <OnboardingMergingAccountBlockedView
-                        workEmail={workEmail}
-                        isVsb={isVsb}
-                    />
-                </View>
-            ) : (
-                <FormProvider
-                    style={[styles.flexGrow1, onboardingIsMediumOrLargerScreenWidth && styles.mt5, onboardingIsMediumOrLargerScreenWidth ? styles.mh8 : styles.mh5]}
-                    formID={ONYXKEYS.FORMS.ONBOARDING_WORK_EMAIL_FORM}
-                    validate={validate}
-                    onSubmit={submitWorkEmail}
-                    submitButtonText={translate('onboarding.workEmail.addWorkEmail')}
-                    enabledWhenOffline
-                    submitFlexEnabled
-                    shouldValidateOnBlur={false}
-                    shouldValidateOnChange={shouldValidateOnChange}
-                    shouldTrimValues={false}
-                    footerContent={
-                        <OfflineWithFeedback
-                            shouldDisplayErrorAbove
-                            style={styles.mb3}
-                            errors={onboardingErrorMessage ? {addWorkEmailError: translate(onboardingErrorMessage)} : undefined}
-                            errorRowStyles={[styles.mt2, styles.textWrap]}
-                            onClose={() => setOnboardingErrorMessage(null)}
-                        >
-                            <Button
-                                large
-                                text={translate('common.skip')}
-                                testID="onboardingPrivateEmailSkipButton"
-                                onPress={() => {
-                                    setOnboardingErrorMessage(null);
-
-                                    setOnboardingMergeAccountStepValue(true, true);
-                                }}
-                                sentryLabel={CONST.SENTRY_LABEL.ONBOARDING.SKIP}
-                            />
-                        </OfflineWithFeedback>
-                    }
-                    shouldRenderFooterAboveSubmit
-                    shouldHideFixErrorsAlert
-                >
+            <FormProvider
+                formID={ONYXKEYS.FORMS.ONBOARDING_WORK_EMAIL_FORM}
+                submitButtonText={submitButtonText}
+                onSubmit={onSubmit}
+                isSubmitButtonVisible={false}
+                style={[styles.flexGrow1, styles.ph5]}
+            >
+                <View style={[styles.flexGrow1, styles.justifyContentBetween]}>
                     <View>
-                        <View style={[onboardingIsMediumOrLargerScreenWidth ? styles.flexRow : styles.flexColumn, styles.mb3]}>
-                            <Text
-                                style={styles.textHeadlineH1}
-                                accessibilityRole={CONST.ROLE.HEADER}
-                            >
-                                {translate('onboarding.workEmail.title')}
-                            </Text>
-                        </View>
-                        <View style={styles.mb2}>
-                            <Text style={[styles.textNormal, styles.colorMuted]}>{translate('onboarding.workEmail.subtitle')}</Text>
-                        </View>
-                        <View>
-                            {section.map((item) => {
-                                return (
-                                    <View
-                                        key={item.titleTranslationKey}
-                                        style={[styles.mt2, styles.mb3]}
-                                    >
-                                        <View style={[styles.flexRow, styles.alignItemsCenter, styles.flex1]}>
-                                            <Icon
-                                                src={item.icon}
-                                                height={ICON_SIZE}
-                                                width={ICON_SIZE}
-                                                additionalStyles={[styles.mr3]}
-                                            />
-                                            <View style={[styles.flexColumn, styles.flex1]}>
-                                                {item.shouldRenderEmail ? (
-                                                    <AutoEmailLink
-                                                        style={[styles.textStrong, styles.lh20]}
-                                                        text={translate(item.titleTranslationKey)}
-                                                    />
-                                                ) : (
-                                                    <Text style={[styles.textStrong, styles.lh20]}>{translate(item.titleTranslationKey)}</Text>
-                                                )}
-                                            </View>
-                                        </View>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    </View>
-
-                    <View style={[styles.mb4, styles.pt3]}>
+                        <Text style={[styles.textHeadlineLineHeightXXL, styles.mv5, styles.textAlignCenter]}>{subtitle}</Text>
                         <InputWrapper
                             InputComponent={TextInput}
-                            // We do not want to auto-focus for mobile platforms
-                            ref={operatingSystem !== CONST.OS.ANDROID && operatingSystem !== CONST.OS.IOS ? inputCallbackRef : undefined}
-                            name="fname"
-                            inputID={INPUT_IDS.ONBOARDING_WORK_EMAIL}
-                            label={translate('common.workEmail')}
-                            aria-label={translate('common.workEmail')}
+                            inputID="email"
+                            label={emailInputLabel}
+                            aria-label={emailInputLabel}
                             role={CONST.ROLE.PRESENTATION}
-                            defaultValue={workEmail ?? ''}
-                            shouldSaveDraft
-                            maxLength={CONST.LOGIN_CHARACTER_LIMIT}
-                            spellCheck={false}
-                            autoComplete="email"
+                            value={email}
+                            onChangeText={(value) => {
+                                setEmail(value);
+                                if (hasError) {
+                                    setOnboardingErrorMessage('');
+                                }
+                            }}
+                            onKeyPress={() => {
+                                if (hasError) {
+                                    setOnboardingErrorMessage('');
+                                }
+                            }}
+                            ref={inputCallbackRef}
+                            errorText={!isEmailValid ? translate('common.error.invalidEmail') : ''}
+                            onBlur={() => validateEmail(email)}
+                            onSubmitEditing={onSubmit}
+                            autoCapitalize="none"
+                            autoCompleteType="email"
+                            textContentType="emailAddress"
+                            keyboardType="email-address"
+                            disabled={isSubmitting}
+                        />
+                        {errorContent}
+                    </View>
+                    <View style={[styles.alignItemsCenter, styles.justifyContentEnd, styles.mb8]}>
+                        <Button
+                            success
+                            isDisabled={!isEmailValid || isSubmitting || isOffline}
+                            isLoading={isSubmitting}
+                            onPress={onSubmit}
+                            pressOnEnter
+                            text={submitButtonText}
+                            style={[styles.mb2]}
+                        />
+                        <AutoEmailLink
+                            style={[styles.mt2, styles.textAlignCenter]}
+                            textStyles={[styles.textMicro]}
                         />
                     </View>
-                </FormProvider>
-            )}
+                </View>
+            </FormProvider>
+            <OfflineWithFeedback
+                isOpen={isMergingAccountBlocked ?? false}
+                onClose={() => setIsMergingAccountBlocked(false)}
+                errorContent={<OnboardingMergingAccountBlockedView onDismiss={() => setIsMergingAccountBlocked(false)} />}
+                shouldShowOfflineIndicator={false}
+                containerStyle={styles.pb0}
+            />
         </ScreenWrapper>
     );
 }
+
+BaseOnboardingWorkEmail.displayName = 'BaseOnboardingWorkEmail';
 
 export default BaseOnboardingWorkEmail;
