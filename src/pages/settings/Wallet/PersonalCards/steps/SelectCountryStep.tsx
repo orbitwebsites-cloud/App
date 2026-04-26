@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useState, useMemo, useCallback, useRef} from 'react';
 import {View} from 'react-native';
 import FormHelpMessage from '@components/FormHelpMessage';
 import HeaderWithBackButton from '@components/HeaderWithBackButton';
@@ -6,137 +6,140 @@ import ScreenWrapper from '@components/ScreenWrapper';
 import SelectionList from '@components/SelectionList';
 import RadioListItem from '@components/SelectionList/ListItem/RadioListItem';
 import Text from '@components/Text';
-import {useCurrencyListState} from '@hooks/useCurrencyList';
-import useCurrentUserPersonalDetails from '@hooks/useCurrentUserPersonalDetails';
-import useDebouncedState from '@hooks/useDebouncedState';
 import useLocalize from '@hooks/useLocalize';
 import useOnyx from '@hooks/useOnyx';
+import useTheme from '@hooks/useTheme';
 import useThemeStyles from '@hooks/useThemeStyles';
-import {getPlaidCountry} from '@libs/CardUtils';
-import searchOptions from '@libs/searchOptions';
-import type {Option} from '@libs/searchOptions';
-import StringUtils from '@libs/StringUtils';
-import Navigation from '@navigation/Navigation';
-import {clearAddNewPersonalCardFlow, setAddNewPersonalCardStepAndData} from '@userActions/PersonalCards';
+import Navigation from '@libs/Navigation/Navigation';
+import type {PlatformStackScreenProps} from '@libs/Navigation/PlatformStackNavigation/types';
+import type {SettingsNavigatorParamList} from '@libs/Navigation/types';
+import type {Country} from '@libs/PhoneNumberUtils/types';
+import * as PersonalCardUtils from '@libs/PersonalCardUtils';
+import * as ValidationUtils from '@libs/ValidationUtils';
+import * as Card from '@userActions/Card';
 import CONST from '@src/CONST';
-import type {TranslationPaths} from '@src/languages/types';
 import ONYXKEYS from '@src/ONYXKEYS';
+import ROUTES from '@src/ROUTES';
+import type SCREENS from '@src/SCREENS';
+import type {CountryListItem} from './types';
 
-function SelectCountryStep({disableAutoFocus}: {disableAutoFocus?: boolean}) {
-    const {translate, localeCompare} = useLocalize();
+type SelectCountryStepProps = PlatformStackScreenProps<SettingsNavigatorParamList, typeof SCREENS.SETTINGS.WALLET.PERSONAL_CARD.ADDRESS_COUNTRY>;
+
+function SelectCountryStep({route}: SelectCountryStepProps) {
+    const {translate} = useLocalize();
+    const theme = useTheme();
     const styles = useThemeStyles();
-    const {currencyList} = useCurrencyListState();
-    const [countryByIp] = useOnyx(ONYXKEYS.COUNTRY);
-    const [addNewPersonalCard] = useOnyx(ONYXKEYS.ADD_NEW_PERSONAL_CARD);
-    const currentUserPersonalDetails = useCurrentUserPersonalDetails();
-    const currency = currentUserPersonalDetails?.localCurrencyCode ?? CONST.CURRENCY.USD;
-    const [searchValue, debouncedSearchValue, setSearchValue] = useDebouncedState('');
+    const [selectedCountry, setSelectedCountry] = useState('');
+    const [errors, setErrors] = useState<{country?: string}>({});
+    const [isCountrySelected, setIsCountrySelected] = useState(false);
+    const [currencyList] = useOnyx(ONYXKEYS.CURRENCY_LIST);
+    const [countryByIp] = useOnyx(ONYXKEYS.COUNTRY_BY_IP);
+    const [personalDetails] = useOnyx(ONYXKEYS.PERSONAL_DETAILS_LIST);
+    const [walletAdditionalData] = useOnyx(ONYXKEYS.WALLET_ADDITIONAL_DATA);
+    const flashListRef = useRef(null);
 
-    const getCountry = () => {
-        if (addNewPersonalCard?.data?.selectedCountry) {
-            return addNewPersonalCard.data.selectedCountry;
+    const policyID = route.params?.policyID ?? '';
+
+    const countryList = useMemo(() => {
+        const countryOptions = PersonalCardUtils.getCountryListForSelection(currencyList);
+        return Object.entries(countryOptions).map(([countryCode, countryName]) => ({
+            value: countryCode,
+            text: countryName,
+            keyForList: countryCode,
+            isSelected: selectedCountry === countryCode,
+        }));
+    }, [currencyList, selectedCountry]);
+
+    const initiallyFocusedIndex = useMemo(() => {
+        if (!selectedCountry) {
+            return 0;
         }
+        return countryList.findIndex((country) => country.value === selectedCountry);
+    }, [countryList, selectedCountry]);
 
-        return getPlaidCountry(currency, currencyList, countryByIp);
-    };
-
-    const [currentCountry, setCurrentCountry] = useState<string | undefined>(getCountry);
-    const [hasError, setHasError] = useState(false);
-    const isUS = currentCountry === CONST.COUNTRY.US;
-
-    const submit = () => {
-        if (!currentCountry || !CONST.PLAID_SUPPORT_COUNTRIES.includes(currentCountry)) {
-            setHasError(true);
-        } else {
-            if (addNewPersonalCard?.data.selectedCountry !== currentCountry) {
-                clearAddNewPersonalCardFlow();
+    const getCountry = useCallback((): string => {
+        if (walletAdditionalData?.bankAccountCountry) {
+            return walletAdditionalData.bankAccountCountry;
+        }
+        if (personalDetails && Object.keys(personalDetails).length > 0) {
+            const firstDetail = Object.values(personalDetails)[0];
+            if (firstDetail?.address?.country) {
+                return firstDetail.address.country;
             }
-            setAddNewPersonalCardStepAndData({
-                step: isUS ? CONST.PERSONAL_CARDS.STEP.SELECT_BANK : CONST.PERSONAL_CARDS.STEP.PLAID_CONNECTION,
-                data: {
-                    selectedCountry: currentCountry,
-                },
-                isEditing: false,
-            });
         }
-    };
+        return countryByIp ?? '';
+    }, [countryByIp, personalDetails, walletAdditionalData?.bankAccountCountry]);
 
     useEffect(() => {
-        setCurrentCountry(getCountry());
+        const country = getCountry();
+        if (country && ValidationUtils.isValidCountry(country)) {
+            setSelectedCountry(country);
+            setIsCountrySelected(true);
+            setErrors({});
+        } else {
+            setSelectedCountry('');
+            setIsCountrySelected(false);
+        }
     }, [getCountry]);
 
-    const handleBackButtonPress = () => {
-        Navigation.goBack();
+    const selectCountry = (country: CountryListItem) => {
+        const countryCode = country.value;
+        if (!ValidationUtils.isValidCountry(countryCode)) {
+            setErrors({country: translate('personalDetails.error.country')});
+            setIsCountrySelected(false);
+            return;
+        }
+        setErrors({});
+        setSelectedCountry(countryCode);
+        setIsCountrySelected(true);
     };
 
-    const onSelectionChange = (country: Option) => {
-        setCurrentCountry(country.value);
+    const navigateBack = () => {
+        Navigation.goBack(ROUTES.SETTINGS_WALLET_PERSONAL_CARD_ADD_EDIT.route);
     };
 
-    const getCountries = () =>
-        CONST.PLAID_SUPPORT_COUNTRIES.map((countryISO) => {
-            const countryName = translate(`allCountries.${countryISO}` as TranslationPaths);
-            return {
-                value: countryISO,
-                keyForList: countryISO,
-                text: countryName,
-                isSelected: currentCountry === countryISO,
-                searchValue: StringUtils.sanitizeString(`${countryISO}${countryName}`),
-            };
-        }).sort((a, b) => localeCompare(a.text, b.text));
-
-    const countries = getCountries();
-
-    const searchResults = searchOptions(debouncedSearchValue, countries);
-    const headerMessage = debouncedSearchValue.trim() && !searchResults.length ? translate('common.noResultsFound') : '';
+    const navigateNext = () => {
+        if (!isCountrySelected) {
+            setErrors({country: translate('personalDetails.error.country')});
+            return;
+        }
+        setErrors({});
+        Card.setPersonalCardAddEditBankAccountStepAndData({
+            country: selectedCountry,
+            policyID,
+        });
+        Navigation.navigate(ROUTES.SETTINGS_WALLET_PERSONAL_CARD_ADDRESS_LINE_1.getRoute(policyID));
+    };
 
     return (
-        <ScreenWrapper
-            testID="SelectCountryStep"
-            enableEdgeToEdgeBottomSafeAreaPadding
-            shouldEnablePickerAvoiding={false}
-            shouldEnableMaxHeight
-        >
-            <HeaderWithBackButton
-                title={translate('personalCard.addPersonalCard')}
-                onBackButtonPress={handleBackButtonPress}
-            />
-
-            <Text style={[styles.textHeadlineLineHeightXXL, styles.ph5, styles.mv3]}>{translate('workspace.companyCards.addNewCard.whereIsYourBankLocated')}</Text>
-            <SelectionList
-                data={searchResults}
-                ListItem={RadioListItem}
-                onSelectRow={onSelectionChange}
-                textInputOptions={{
-                    headerMessage,
-                    value: searchValue,
-                    label: translate('common.search'),
-                    onChangeText: setSearchValue,
-                    disableAutoFocus,
-                }}
-                confirmButtonOptions={{
-                    onConfirm: submit,
-                    showButton: true,
-                    text: translate('common.next'),
-                }}
-                initiallyFocusedItemKey={currentCountry}
-                disableMaintainingScrollPosition
-                shouldSingleExecuteRowSelect
-                shouldUpdateFocusedIndex
-                addBottomSafeAreaPadding
-                shouldStopPropagation
-            >
-                {hasError && (
-                    <View style={[styles.ph3, styles.mb3]}>
-                        <FormHelpMessage
-                            isError={hasError}
-                            message={translate('workspace.companyCards.addNewCard.error.pleaseSelectCountry')}
-                        />
-                    </View>
-                )}
-            </SelectionList>
+        <ScreenWrapper testID={SelectCountryStep.displayName}>
+            <HeaderWithBackButton title={translate('personalCard.addressCountryStep.title')} onBackButtonPress={navigateBack} />
+            <View style={[styles.flex1, styles.w100]}>
+                <View style={[styles.flexGrow1, styles.flexShrink1, styles.flexBasisAuto, styles.ph5]}>
+                    <Text style={[styles.textNormal, styles.colorNormal, styles.mb6]}>{translate('personalCard.addressCountryStep.subtitle')}</Text>
+                    <SelectionList
+                        ref={flashListRef}
+                        headerMessage=""
+                        sections={[{data: countryList, indexOffset: 0}]}
+                        textInputValue={selectedCountry}
+                        onSelectRow={selectCountry}
+                        initiallyFocusedIndex={initiallyFocusedIndex}
+                        showScrollIndicator
+                        hideSectionHeaders
+                        ListItem={RadioListItem}
+                        listHeaderContent={<View style={styles.pb4} />}
+                    />
+                    <FormHelpMessage
+                        style={[styles.mt2, styles.mh0]}
+                        isError={!!errors.country}
+                        message={errors.country}
+                    />
+                </View>
+            </View>
         </ScreenWrapper>
     );
 }
+
+SelectCountryStep.displayName = 'SelectCountryStep';
 
 export default SelectCountryStep;
