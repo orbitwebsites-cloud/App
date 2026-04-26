@@ -1,44 +1,30 @@
-import {isExpiredSession} from '@libs/actions/Session';
-import CONST from '@src/CONST';
+import type {ImageSource} from 'expo-image';
 import type Session from '@src/types/onyx/Session';
-import type {ImageProps} from './types';
 
 type GetImageSourceParams = {
-    propsSource: ImageProps['source'];
-    session: Session | undefined;
+    propsSource: ImageSource;
+    session: Session | null;
+    isAuthTokenRequired?: boolean;
+    authTokenType?: string;
+    authToken?: string;
+};
+
+function getImageSource({propsSource, session, isAuthTokenRequired = false, authTokenType = '', authToken = ''}: GetImageSourceParams): {
+    source: ImageSource;
+    headers: Record<string, string>;
     isAuthTokenRequired: boolean;
-    isOffline: boolean;
-};
+} {
+    const source = {...propsSource};
+    const headers: Record<string, string> = {};
 
-type GetImageSourceReturn = {
-    source: ImageProps['source'];
-    shouldReauthenticate: boolean;
-};
-
-export default function getImageSource({propsSource, session, isAuthTokenRequired, isOffline}: GetImageSourceParams): GetImageSourceReturn {
-    if (typeof propsSource === 'object' && propsSource !== null && 'uri' in propsSource) {
-        if (typeof propsSource.uri === 'number') {
-            return {source: propsSource.uri, shouldReauthenticate: false};
-        }
-
-        const authToken = session?.encryptedAuthToken ?? null;
-        if (isAuthTokenRequired && authToken) {
-            if (isOffline || (!!session?.creationDate && !isExpiredSession(session.creationDate))) {
-                return {
-                    source: {
-                        ...propsSource,
-                        cacheKey: propsSource.uri,
-                        headers: {
-                            [CONST.CHAT_ATTACHMENT_TOKEN_KEY]: authToken,
-                        },
-                    },
-                    shouldReauthenticate: false,
-                };
-            }
-
-            return {source: undefined, shouldReauthenticate: !!session};
-        }
+    if (!isAuthTokenRequired || !authToken) {
+        return {source, headers, isAuthTokenRequired: false};
     }
 
-    return {source: propsSource, shouldReauthenticate: false};
+    headers[authTokenType] = authToken;
+    isAuthTokenRequired = true;
+
+    return {source, headers, isAuthTokenRequired};
 }
+
+export default getImageSource;
