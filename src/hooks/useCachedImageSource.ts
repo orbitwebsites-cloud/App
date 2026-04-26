@@ -1,110 +1,119 @@
-import type {ImageSource} from 'expo-image';
 import {useEffect, useState} from 'react';
+import {CacheManager} from 'expo-image';
+import * as FileSystem from 'expo-file-system';
+import type {ImageSource} from 'expo-image';
+import * as Network from 'expo-network';
+import ONYXKEYS from '@src/ONYXKEYS';
+import type {OnyxCollectionKey} from '@src/types/onyx';
+import Onyx from 'react-native-onyx';
+import {canUseTouchScreen} from '@libs/DeviceCapabilities';
 import Log from '@libs/Log';
-import CONST from '@src/CONST';
 
-const clearAuthImagesCache = async () => {
-    if (!('caches' in window)) {
-        return;
-    }
-
-    try {
-        await caches.delete(CONST.CACHE_NAME.AUTH_IMAGES);
-    } catch (error) {
-        Log.alert('[AuthImageCache] Error clearing auth image cache:', {message: (error as Error).message});
-    }
+type CacheStatus = {
+    isLoading: boolean;
+    error: Error | null;
+    source: ImageSource | null;
 };
 
-function useCachedImageSource(source: ImageSource | undefined): ImageSource | null | undefined {
-    const uri = typeof source === 'object' ? source.uri : undefined;
-    const hasHeaders = typeof source === 'object' && !!source.headers;
-    const [cachedUri, setCachedUri] = useState<string | null>(null);
-    const [hasError, setHasError] = useState(false);
+const cacheKeys: OnyxCollectionKey[] = [ONYXKEYS.CACHED_IMAGE];
+
+const useCachedImageSource = (uri: string | null | undefined, headers: Record<string, string> = {}): CacheStatus => {
+    const [cacheStatus, setCacheStatus] = useState<CacheStatus>({
+        isLoading: false,
+        error: null,
+        source: null,
+    });
 
     useEffect(() => {
-        setCachedUri(null);
-        setHasError(false);
-
-        if (!hasHeaders || !uri) {
+        if (!uri) {
+            setCacheStatus({
+                isLoading: false,
+                error: null,
+                source: null,
+            });
             return;
         }
 
-        let revoked = false;
-        let objectURL: string | undefined;
+        let isMounted = true;
 
-        (async () => {
+        const fetchAndCacheImage = async () => {
             try {
-                const cache = await caches.open(CONST.CACHE_NAME.AUTH_IMAGES);
-                const cachedResponse = await cache.match(uri);
+                setCacheStatus({
+                    isLoading: true,
+                    error: null,
+                    source: {uri},
+                });
 
-                if (cachedResponse) {
-                    const blob = await cachedResponse.blob();
-                    objectURL = URL.createObjectURL(blob);
-                    if (!revoked) {
-                        setCachedUri(objectURL);
-                    } else {
-                        URL.revokeObjectURL(objectURL);
+                const networkState = await Network.getNetworkStateAsync();
+                if (networkState.isInternetReachable) {
+                    try {
+                        const response = await fetch(uri, {headers});
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+                        }
+                        const arrayBuffer = await response.arrayBuffer();
+                        const base64 = `data:${response.headers.get('Content-Type') ?? 'image/jpeg'};base64,${arrayBufferToBase64(arrayBuffer)}`;
+                        const fileUri = `${FileSystem.cacheDirectory}${encodeURIComponent(uri)}`;
+                        await FileSystem.writeAsStringAsync(fileUri, base64, {encoding: FileSystem.EncodingType.Base64});
+                        Onyx.merge(ONYXKEYS.CACHED_IMAGE, {[uri]: fileUri});
+                        if (!isMounted) return;
+                        setCacheStatus({
+                            isLoading: false,
+                            error: null,
+                            source: {uri: fileUri},
+                        });
+                        return;
+                    } catch (error) {
+                        Log.warn('Failed to fetch and cache image online, falling back to local cache', {uri, error: (error as Error).message});
                     }
-                    return;
                 }
 
-                const response = await fetch(uri, {headers: source.headers});
-
-                if (!response.ok) {
-                    if (!revoked) {
-                        setHasError(true);
+                const cachedUri = await Onyx.get(ONYXKEYS.CACHED_IMAGE);
+                const savedUri = cachedUri?.[uri];
+                if (savedUri) {
+                    const metadata = await FileSystem.getInfoAsync(savedUri);
+                    if (metadata.exists) {
+                        if (!isMounted) return;
+                        setCacheStatus({
+                            isLoading: false,
+                            error: null,
+                            source: {uri: savedUri},
+                        });
+                        return;
                     }
-                    return;
                 }
 
-                // Store in cache before consuming
-                await cache.put(uri, response.clone());
-
-                const blob = await response.blob();
-                objectURL = URL.createObjectURL(blob);
-                if (!revoked) {
-                    setCachedUri(objectURL);
-                } else {
-                    URL.revokeObjectURL(objectURL);
+                if (!networkState.isInternetReachable) {
+                    throw new Error('No internet connection and no cached image available');
                 }
             } catch (error) {
-                if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-                    await clearAuthImagesCache();
-                }
-                if (!revoked) {
-                    setHasError(true);
-                }
-            }
-        })();
-
-        return () => {
-            revoked = true;
-            if (objectURL) {
-                URL.revokeObjectURL(objectURL);
+                if (!isMounted) return;
+                setCacheStatus({
+                    isLoading: false,
+                    error: error instanceof Error ? error : new Error('Unknown error occurred'),
+                    source: {uri},
+                });
             }
         };
-    }, [uri, hasHeaders, source?.headers]);
 
-    // Images without headers are cached natively by the browser,
-    // so pass them through as-is — no Cache API needed
-    if (!hasHeaders) {
-        return source;
+        fetchAndCacheImage();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [uri, headers]);
+
+    return cacheStatus;
+};
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
     }
-
-    // If caching failed, fall back to the original source so expo-image
-    // handles it normally (including error reporting via onError)
-    if (hasError) {
-        return source;
-    }
-
-    // Cache fetch is still in progress — return null so expo-image doesn't
-    // render the image with headers (which would bypass our cache)
-    if (!cachedUri) {
-        return null;
-    }
-
-    return {uri: cachedUri};
+    return btoa(binary);
 }
 
 export default useCachedImageSource;
-export {clearAuthImagesCache};
