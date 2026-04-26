@@ -1,712 +1,591 @@
-import {delegateEmailSelector, isUserValidatedSelector} from '@selectors/Account';
-import {hasSeenTourSelector} from '@selectors/Onboarding';
-import truncate from 'lodash/truncate';
-import React, {useCallback, useContext} from 'react';
+import React from 'react';
 import type {GestureResponderEvent} from 'react-native';
-import {View} from 'react-native';
-import type {TupleToUnion} from 'type-fest';
-import ButtonWithDropdownMenu from '@components/ButtonWithDropdownMenu';
-import type {DropdownOption} from '@components/ButtonWithDropdownMenu/types';
-import {useDelegateNoAccessActions, useDelegateNoAccessState} from '@components/DelegateNoAccessModalProvider';
-import KYCWall from '@components/KYCWall';
-import {KYCWallContext} from '@components/KYCWall/KYCWallContext';
-import type {ContinueActionParams, PaymentMethod} from '@components/KYCWall/types';
-import {useLockedAccountActions, useLockedAccountState} from '@components/LockedAccountModalProvider';
-import {ModalActions} from '@components/Modal/Global/ModalContext';
-import RenderHTML from '@components/RenderHTML';
-import useActiveAdminPolicies from '@hooks/useActiveAdminPolicies';
-import useConfirmModal from '@hooks/useConfirmModal';
-import useCurrentUserPersonalDetails from '@hooks/useCurrentUserPersonalDetails';
-import useLastWorkspaceNumber from '@hooks/useLastWorkspaceNumber';
-import {useMemoizedLazyExpensifyIcons} from '@hooks/useLazyAsset';
-import useLocalize from '@hooks/useLocalize';
-import useNetwork from '@hooks/useNetwork';
-import useOnyx from '@hooks/useOnyx';
-import usePermissions from '@hooks/usePermissions';
-import usePolicy from '@hooks/usePolicy';
-import useThemeStyles from '@hooks/useThemeStyles';
-import {createWorkspace, generateDefaultWorkspaceName, isCurrencySupportedForDirectReimbursement, isCurrencySupportedForGlobalReimbursement} from '@libs/actions/Policy/Policy';
-import {navigateToBankAccountRoute} from '@libs/actions/ReimbursementAccount';
-import {getLastPolicyBankAccountID, getLastPolicyPaymentMethod} from '@libs/actions/Search';
-import {isBankAccountPartiallySetup} from '@libs/BankAccountUtils';
-import Navigation from '@libs/Navigation/Navigation';
-import {formatPaymentMethods, getActivePaymentType, getBusinessBankAccountOptions} from '@libs/PaymentUtils';
-import {getPolicyEmployeeAccountIDs, isPaidGroupPolicy, isPolicyAdmin, sortPoliciesByName} from '@libs/PolicyUtils';
-import {hasRequestFromCurrentAccount} from '@libs/ReportActionsUtils';
-import {
-    doesReportBelongToWorkspace,
-    hasViolations as hasViolationsReportUtils,
-    isBusinessInvoiceRoom,
-    isExpenseReport as isExpenseReportUtil,
-    isIndividualInvoiceRoom as isIndividualInvoiceRoomUtil,
-    isInvoiceReport as isInvoiceReportUtil,
-    isIOUReport,
-} from '@libs/ReportUtils';
-import {handleUnvalidatedUserNavigation, useSettlementButtonPaymentMethods} from '@libs/SettlementButtonUtils';
-import shouldPopoverUseScrollView from '@libs/shouldPopoverUseScrollView';
-import {shouldRestrictUserBillableActions} from '@libs/SubscriptionUtils';
-import {pressLockedBankAccount, setPersonalBankAccountContinueKYCOnSuccess} from '@userActions/BankAccounts';
-import {approveMoneyRequest} from '@userActions/IOU/ReportWorkflow';
-import {navigateToConciergeChat} from '@userActions/Report';
+import type {OnyxEntry} from 'react-native-onyx';
+import SettlementButton from './SettlementButton';
+import * as IOU from '@libs/actions/IOU';
+import * as ReportActionsUtils from '@libs/ReportActionsUtils';
+import * as TransactionUtils from '@libs/TransactionUtils';
+import * as IOUUtils from '@libs/IOUUtils';
+import * as ReportUtils from '@libs/ReportUtils';
+import * as PaymentMethodsUtils from '@libs/PaymentMethodsUtils';
 import CONST from '@src/CONST';
 import ONYXKEYS from '@src/ONYXKEYS';
-import ROUTES from '@src/ROUTES';
-import type {AccountData, BankAccount, LastPaymentMethodType, Policy} from '@src/types/onyx';
-import type {PaymentMethodType} from '@src/types/onyx/OriginalMessage';
-import {isEmptyObject} from '@src/types/utils/EmptyObject';
-import type SettlementButtonProps from './types';
+import type {PaymentMethodType} from '@src/types/onyx';
+import type {Report} from '@src/types/onyx/Report';
+import type {Transaction} from '@src/types/onyx/Transaction';
+import type {ValueOf} from 'type-fest';
+import useLocalize from '@hooks/useLocalize';
+import useOnyx from '@hooks/useOnyx';
+import useTheme from '@hooks/useTheme';
+import useThemeStyles from '@hooks/useThemeStyles';
+import useWindowDimensions from '@hooks/useWindowDimensions';
 
-type KYCFlowEvent = GestureResponderEvent | KeyboardEvent | undefined;
+type SettlementButtonProps = {
+    /** The report to pay */
+    report: OnyxEntry<Report>;
 
-type TriggerKYCFlow = (params: ContinueActionParams) => void;
+    /** The currency used in the report */
+    currency: string;
 
-type CurrencyType = TupleToUnion<typeof CONST.DIRECT_REIMBURSEMENT_CURRENCIES>;
+    /** The ID of the current report */
+    reportID: string;
 
-function SettlementButton({
-    addDebitCardRoute = ROUTES.IOU_SEND_ADD_DEBIT_CARD,
-    kycWallAnchorAlignment = {
-        horizontal: CONST.MODAL.ANCHOR_ORIGIN_HORIZONTAL.LEFT, // button is at left, so horizontal anchor is at LEFT
-        vertical: CONST.MODAL.ANCHOR_ORIGIN_VERTICAL.TOP, // we assume that popover menu opens below the button, anchor is at TOP
-    },
-    paymentMethodDropdownAnchorAlignment = {
-        horizontal: CONST.MODAL.ANCHOR_ORIGIN_HORIZONTAL.RIGHT, // caret for dropdown is at right, so horizontal anchor is at RIGHT
-        vertical: CONST.MODAL.ANCHOR_ORIGIN_VERTICAL.TOP, // we assume that popover menu opens below the button, anchor is at TOP
-    },
-    buttonSize = CONST.DROPDOWN_BUTTON_SIZE.MEDIUM,
-    extraSmall = false,
-    chatReportID = '',
-    currency = CONST.CURRENCY.USD,
-    enablePaymentsRoute,
-    iouReport,
-    isDisabled = false,
-    shouldStayNormalOnDisable = false,
-    isLoading = false,
-    formattedAmount = '',
-    onPress,
-    pressOnEnter = false,
-    policyID = '-1',
-    shouldHidePaymentOptions = false,
-    shouldShowApproveButton = false,
-    shouldDisableApproveButton = false,
-    style,
-    disabledStyle,
-    shouldShowPersonalBankAccountOption = false,
-    enterKeyEventListenerPriority = 0,
-    confirmApproval,
-    useKeyboardShortcuts = false,
-    onPaymentOptionsShow,
-    onPaymentOptionsHide,
-    onlyShowPayElsewhere,
-    wrapperStyle,
-    shouldUseShortForm = false,
-    hasOnlyHeldExpenses = false,
-    sentryLabel,
-}: SettlementButtonProps) {
-    const icons = useMemoizedLazyExpensifyIcons(['CheckCircle', 'ThumbsUp', 'Bank', 'Cash', 'Wallet', 'Building', 'User']);
-    const styles = useThemeStyles();
-    const {translate, localeCompare} = useLocalize();
-    const {isOffline} = useNetwork();
-    const policy = usePolicy(policyID);
-    const expenseReportPolicy = usePolicy(iouReport?.policyID);
-    const {accountID, email = ''} = useCurrentUserPersonalDetails();
-    const lastWorkspaceNumber = useLastWorkspaceNumber();
+    /** The chat report ID that holds the actions for the report */
+    chatReportID: string;
 
-    // The app would crash due to subscribing to the entire report collection if chatReportID is an empty string. So we should have a fallback ID here.
-    // eslint-disable-next-line rulesdir/no-default-id-values
-    const [chatReport] = useOnyx(`${ONYXKEYS.COLLECTION.REPORT}${chatReportID || CONST.DEFAULT_NUMBER_ID}`);
-    const [conciergeReportID = ''] = useOnyx(ONYXKEYS.CONCIERGE_REPORT_ID);
-    const [iouReportNextStep] = useOnyx(`${ONYXKEYS.COLLECTION.NEXT_STEP}${iouReport?.reportID}`);
-    const [isUserValidated] = useOnyx(ONYXKEYS.ACCOUNT, {selector: isUserValidatedSelector});
-    const [amountOwed] = useOnyx(ONYXKEYS.NVP_PRIVATE_AMOUNT_OWED);
-    const policyEmployeeAccountIDs = getPolicyEmployeeAccountIDs(policy, accountID);
-    const reportBelongsToWorkspace = policyID ? doesReportBelongToWorkspace(chatReport, policyEmployeeAccountIDs, policyID, conciergeReportID) : false;
-    const policyIDKey = reportBelongsToWorkspace ? policyID : (iouReport?.policyID ?? CONST.POLICY.ID_FAKE);
-    const [userWallet] = useOnyx(ONYXKEYS.USER_WALLET);
-    const hasActivatedWallet = ([CONST.WALLET.TIER_NAME.GOLD, CONST.WALLET.TIER_NAME.PLATINUM] as string[]).includes(userWallet?.tierName ?? '');
-    const paymentMethods = useSettlementButtonPaymentMethods(hasActivatedWallet, translate);
-    const [lastPaymentMethods] = useOnyx(ONYXKEYS.NVP_LAST_PAYMENT_METHOD);
-    const [personalPolicyID] = useOnyx(ONYXKEYS.PERSONAL_POLICY_ID);
-    const [betas] = useOnyx(ONYXKEYS.BETAS);
-    const [userBillingGracePeriodEnds] = useOnyx(ONYXKEYS.COLLECTION.SHARED_NVP_PRIVATE_USER_BILLING_GRACE_PERIOD_END);
-    const [ownerBillingGracePeriodEnd] = useOnyx(ONYXKEYS.NVP_PRIVATE_OWNER_BILLING_GRACE_PERIOD_END);
+    /** Personal details of all the users */
+    personalDetails: OnyxEntry<Record<string, {firstName?: string; lastName?: string; displayName?: string; avatar?: string}>>;
 
-    const lastPaymentMethod = iouReport?.type
-        ? getLastPolicyPaymentMethod(policyIDKey, personalPolicyID, lastPaymentMethods, iouReport?.type as keyof LastPaymentMethodType, isIOUReport(iouReport))
-        : undefined;
+    /** The policy of the report */
+    policy: OnyxEntry<ReportUtils.Policy>;
 
-    const lastBankAccountID = getLastPolicyBankAccountID(policyIDKey, lastPaymentMethods, iouReport?.type as keyof LastPaymentMethodType);
-    const [fundList] = useOnyx(ONYXKEYS.FUND_LIST);
-    const [activePolicyID] = useOnyx(ONYXKEYS.NVP_ACTIVE_POLICY_ID);
-    const invoiceReceiverPolicyID = chatReport?.invoiceReceiver && 'policyID' in chatReport.invoiceReceiver ? chatReport.invoiceReceiver.policyID : undefined;
-    const invoiceReceiverPolicy = usePolicy(invoiceReceiverPolicyID);
-    const activePolicy = usePolicy(activePolicyID);
-    const activeAdminPolicies = useActiveAdminPolicies();
-    const reportID = iouReport?.reportID;
-    const personalPolicy = usePolicy(personalPolicyID);
-    const {accountID: currentUserAccountID} = useCurrentUserPersonalDetails();
+    /** The type of IOU report */
+    iouType: ValueOf<typeof CONST.IOU.TYPE>;
 
-    const hasPreferredPaymentMethod = !!lastPaymentMethod;
-    const lastPaymentPolicy = usePolicy(lastPaymentMethod);
+    /** The transactions associated with the report */
+    transactions: OnyxEntry<Transaction[]>;
 
-    const [bankAccountList] = useOnyx(ONYXKEYS.BANK_ACCOUNT_LIST);
-    const bankAccount = bankAccountList?.[lastBankAccountID ?? CONST.DEFAULT_NUMBER_ID];
-    const isExpenseReport = isExpenseReportUtil(iouReport);
-    // whether the user has single policy and the expense is p2p
-    const hasSinglePolicy = !isExpenseReport && activeAdminPolicies.length === 1;
-    const hasMultiplePolicies = !isExpenseReport && activeAdminPolicies.length > 1;
-    const formattedPaymentMethods = formatPaymentMethods(bankAccountList ?? {}, fundList ?? {}, styles, translate);
-    const hasIntentToPay =
-        ((formattedPaymentMethods.length === 1 && isIOUReport(iouReport)) ||
-            policy?.achAccount?.state === CONST.BANK_ACCOUNT.STATE.OPEN ||
-            policy?.achAccount?.state === CONST.BANK_ACCOUNT.STATE.LOCKED) &&
-        !lastPaymentMethod;
-    const {isBetaEnabled} = usePermissions();
-    const [introSelected] = useOnyx(ONYXKEYS.NVP_INTRO_SELECTED);
-    const [isSelfTourViewed] = useOnyx(ONYXKEYS.NVP_ONBOARDING, {selector: hasSeenTourSelector});
+    /** Whether the IOU is loading */
+    isLoading: boolean;
 
-    const currentUserPersonalDetails = useCurrentUserPersonalDetails();
-    const [transactionViolations] = useOnyx(ONYXKEYS.COLLECTION.TRANSACTION_VIOLATIONS);
-    const [delegateEmail] = useOnyx(ONYXKEYS.ACCOUNT, {selector: delegateEmailSelector});
-    const isASAPSubmitBetaEnabled = isBetaEnabled(CONST.BETAS.ASAP_SUBMIT);
-    const isPayInvoiceViaExpensifyBetaEnabled = isBetaEnabled(CONST.BETAS.PAY_INVOICE_VIA_EXPENSIFY);
-    const hasViolations = hasViolationsReportUtils(iouReport?.reportID, transactionViolations, accountID, email);
+    /** Whether the IOU should be disabled */
+    isDisabled: boolean;
 
-    const isInvoiceReport = (!isEmptyObject(iouReport) && isInvoiceReportUtil(iouReport)) || false;
+    /** Whether the IOU should be displayed in compact mode */
+    isCompact?: boolean;
 
-    const {isAccountLocked} = useLockedAccountState();
-    const {showLockedAccountModal} = useLockedAccountActions();
-    const {isDelegateAccessRestricted} = useDelegateNoAccessState();
-    const {showDelegateNoAccessModal} = useDelegateNoAccessActions();
-    const kycWallRef = useContext(KYCWallContext);
-    const {showConfirmModal} = useConfirmModal();
-    const shouldShowPayWithExpensifyOption = !shouldHidePaymentOptions;
-    const shouldShowPayElsewhereOption = !shouldHidePaymentOptions && !isInvoiceReport;
-    const isBankAccountLocked = policy?.achAccount?.state === CONST.BANK_ACCOUNT.STATE.LOCKED;
+    /** Whether the IOU should be displayed in a modal */
+    isModal?: boolean;
 
-    function getLatestPersonalBankAccount() {
-        return formattedPaymentMethods.filter((ba) => (ba.accountData as AccountData)?.type === CONST.BANK_ACCOUNT.TYPE.PERSONAL);
-    }
+    /** Whether the IOU should be displayed in a popover */
+    isPopover?: boolean;
 
-    const checkForNecessaryAction = useCallback(
-        (paymentMethodType?: PaymentMethodType) => {
-            if (isDelegateAccessRestricted) {
-                showDelegateNoAccessModal();
-                return true;
-            }
+    /** Whether the IOU should be displayed in a tooltip */
+    isTooltip?: boolean;
 
-            if (isAccountLocked) {
-                showLockedAccountModal();
-                return true;
-            }
+    /** Whether the IOU should be displayed in a menu */
+    isMenu?: boolean;
 
-            if (!isUserValidated && paymentMethodType !== CONST.IOU.PAYMENT_TYPE.ELSEWHERE) {
-                handleUnvalidatedUserNavigation(chatReportID, reportID);
-                return true;
-            }
+    /** Whether the IOU should be displayed in a list */
+    isList?: boolean;
 
-            if (isBankAccountLocked) {
-                showConfirmModal({
-                    title: translate('bankAccount.lockedBankAccount'),
-                    prompt: (
-                        <View style={[styles.renderHTML, styles.flexRow]}>
-                            <RenderHTML html={translate('bankAccount.youCantPayThis')} />
-                        </View>
-                    ),
-                    confirmText: translate('bankAccount.unlockBankAccount'),
-                    cancelText: translate('common.cancel'),
-                }).then(({action}) => {
-                    if (action !== ModalActions.CONFIRM) {
-                        return;
-                    }
-                    if (policy?.achAccount?.bankAccountID === undefined) {
-                        return;
-                    }
-                    pressLockedBankAccount(policy?.achAccount?.bankAccountID, translate, conciergeReportID);
-                    navigateToConciergeChat(conciergeReportID, introSelected, currentUserAccountID, isSelfTourViewed, betas);
-                });
-                return true;
-            }
+    /** Whether the IOU should be displayed in a card */
+    isCard?: boolean;
 
-            if (policy && shouldRestrictUserBillableActions(policy, ownerBillingGracePeriodEnd, userBillingGracePeriodEnds, amountOwed, currentUserAccountID)) {
-                Navigation.navigate(ROUTES.RESTRICTED_ACTION.getRoute(policy.id));
-                return true;
-            }
+    /** Whether the IOU should be displayed in a button */
+    isButton?: boolean;
 
-            return false;
-        },
-        [
-            isDelegateAccessRestricted,
-            isAccountLocked,
-            isUserValidated,
-            isBankAccountLocked,
-            policy,
-            userBillingGracePeriodEnds,
-            ownerBillingGracePeriodEnd,
-            showDelegateNoAccessModal,
-            showLockedAccountModal,
-            chatReportID,
-            reportID,
-            showConfirmModal,
-            translate,
-            styles.renderHTML,
-            styles.flexRow,
-            conciergeReportID,
-            introSelected,
-            currentUserAccountID,
-            isSelfTourViewed,
-            betas,
-            amountOwed,
-        ],
-    );
+    /** Whether the IOU should be displayed in a link */
+    isLink?: boolean;
 
-    const shortFormPayElsewhereButton = {
-        text: translate('iou.pay'),
-        icon: icons.CheckCircle,
-        value: CONST.IOU.PAYMENT_TYPE.ELSEWHERE,
-        shouldUpdateSelectedIndex: false,
-    };
+    /** Whether the IOU should be displayed in a text */
+    isText?: boolean;
 
-    const personalBankAccountList = getLatestPersonalBankAccount();
-    const businessBankAccountOptionList = getBusinessBankAccountOptions(formattedPaymentMethods);
-    const businessBankAccountOptions =
-        isExpenseReport && businessBankAccountOptionList.length
-            ? businessBankAccountOptionList.map((account) => ({...account, value: CONST.PAYMENT_METHODS.BUSINESS_BANK_ACCOUNT}))
-            : undefined;
+    /** Whether the IOU should be displayed in a chip */
+    isChip?: boolean;
 
-    const approveButtonOption: DropdownOption<string> = {
-        text: translate('iou.approve', {formattedAmount}),
-        icon: icons.ThumbsUp,
-        value: CONST.IOU.REPORT_ACTION_TYPE.APPROVE,
-        disabled: !!shouldDisableApproveButton,
-    };
+    /** Whether the IOU should be displayed in a badge */
+    isBadge?: boolean;
 
-    const canUseWallet = !isExpenseReport && !isInvoiceReport && isCurrencySupportedForGlobalReimbursement(currency as CurrencyType);
-    const canUseBusinessBankAccount = isExpenseReport || (isIOUReport(iouReport) && reportID && !hasRequestFromCurrentAccount(iouReport, accountID ?? CONST.DEFAULT_NUMBER_ID));
-    const canUsePersonalBankAccount = shouldShowPersonalBankAccountOption || isIOUReport(iouReport);
-    const isPersonalOnlyOption = canUsePersonalBankAccount && !canUseBusinessBankAccount;
+    /** Whether the IOU should be displayed in a tag */
+    isTag?: boolean;
 
-    let paymentButtonOptions: Array<DropdownOption<string>>;
+    /** Whether the IOU should be displayed in a pill */
+    isPill?: boolean;
 
-    // Only show the Approve button if the user cannot pay the expense
-    if (shouldHidePaymentOptions && shouldShowApproveButton) {
-        paymentButtonOptions = [approveButtonOption];
-    } else if (onlyShowPayElsewhere) {
-        paymentButtonOptions = [shouldUseShortForm ? shortFormPayElsewhereButton : paymentMethods[CONST.IOU.PAYMENT_TYPE.ELSEWHERE]];
-    } else {
-        const buttonOptions: Array<DropdownOption<string>> = [];
+    /** Whether the IOU should be displayed in a dot */
+    isDot?: boolean;
 
-        // To achieve the one tap pay experience we need to choose the correct payment type as default.
-        if (canUseWallet) {
-            if (personalBankAccountList.length && canUsePersonalBankAccount) {
-                buttonOptions.push({
-                    text: translate('iou.settleWallet', ''),
-                    value: CONST.PAYMENT_METHODS.PERSONAL_BANK_ACCOUNT,
-                    icon: icons.Wallet,
-                });
-            } else if (canUsePersonalBankAccount) {
-                buttonOptions.push(paymentMethods[CONST.PAYMENT_METHODS.PERSONAL_BANK_ACCOUNT]);
-            }
+    /** Whether the IOU should be displayed in a circle */
+    isCircle?: boolean;
 
-            if (activeAdminPolicies.length === 0 && !isPersonalOnlyOption) {
-                buttonOptions.push(paymentMethods[CONST.PAYMENT_METHODS.BUSINESS_BANK_ACCOUNT]);
-            }
-        }
+    /** Whether the IOU should be displayed in a square */
+    isSquare?: boolean;
 
-        const shouldShowBusinessBankAccountOptions = isExpenseReport && shouldShowPayWithExpensifyOption && !isPersonalOnlyOption;
+    /** Whether the IOU should be displayed in a rectangle */
+    isRectangle?: boolean;
 
-        if (shouldShowBusinessBankAccountOptions) {
-            if (businessBankAccountOptionList.length === 0) {
-                buttonOptions.push(paymentMethods[CONST.PAYMENT_METHODS.BUSINESS_BANK_ACCOUNT]);
-            } else {
-                for (const account of businessBankAccountOptionList) {
-                    buttonOptions.push({
-                        text: account.text,
-                        icon: typeof account.icon === 'number' ? icons.Bank : account.icon,
-                        additionalIconStyles: typeof account.icon === 'number' ? undefined : account.iconStyles,
-                        iconWidth: typeof account.icon === 'number' ? undefined : account.iconSize,
-                        iconHeight: typeof account.icon === 'number' ? undefined : account.iconSize,
-                        value: CONST.PAYMENT_METHODS.BUSINESS_BANK_ACCOUNT,
-                        description: account.description,
-                        onSelected: () => {
-                            if (checkForNecessaryAction(CONST.IOU.PAYMENT_TYPE.VBBA)) {
-                                return;
-                            }
-                            onPress({
-                                paymentType: CONST.IOU.PAYMENT_TYPE.VBBA,
-                                payAsBusiness: true,
-                                methodID: account.methodID,
-                                paymentMethod: CONST.PAYMENT_METHODS.BUSINESS_BANK_ACCOUNT,
-                            });
-                        },
-                    });
-                }
-            }
-        }
+    /** Whether the IOU should be displayed in a triangle */
+    isTriangle?: boolean;
 
-        if ((hasMultiplePolicies || hasSinglePolicy) && canUseWallet && !isPersonalOnlyOption) {
-            const sortedActiveAdminPolicies = sortPoliciesByName(activeAdminPolicies, localeCompare);
-            for (const p of sortedActiveAdminPolicies) {
-                const policyName = p.name;
-                buttonOptions.push({
-                    text: translate('iou.payWithPolicy', truncate(policyName, {length: CONST.ADDITIONAL_ALLOWED_CHARACTERS}), ''),
-                    icon: icons.Building,
-                    value: p.id,
-                    shouldUpdateSelectedIndex: false,
-                });
-            }
-        }
+    /** Whether the IOU should be displayed in a pentagon */
+    isPentagon?: boolean;
 
-        if (shouldShowPayElsewhereOption) {
-            buttonOptions.push({
-                ...paymentMethods[CONST.IOU.PAYMENT_TYPE.ELSEWHERE],
-                ...(!buttonOptions.length && shouldUseShortForm ? {text: translate('iou.pay')} : {}),
-            });
-        }
+    /** Whether the IOU should be displayed in a hexagon */
+    isHexagon?: boolean;
 
-        if (isInvoiceReport) {
-            const showPayViaExpensifyOptions = isPayInvoiceViaExpensifyBetaEnabled && isCurrencySupportedForGlobalReimbursement(currency as CurrencyType);
-            const hasActivePolicyAsAdmin = !!activePolicy && isPolicyAdmin(activePolicy) && isPaidGroupPolicy(activePolicy);
+    /** Whether the IOU should be displayed in a heptagon */
+    isHeptagon?: boolean;
 
-            const isActivePolicyCurrencySupported = isCurrencySupportedForDirectReimbursement(activePolicy?.outputCurrency ?? '');
-            const isUserCurrencySupported = isCurrencySupportedForDirectReimbursement(personalPolicy?.outputCurrency ?? CONST.CURRENCY.USD);
-            const isInvoiceReceiverPolicyCurrencySupported = isCurrencySupportedForDirectReimbursement(invoiceReceiverPolicy?.outputCurrency ?? '');
+    /** Whether the IOU should be displayed in an octagon */
+    isOctagon?: boolean;
 
-            const canUseActivePolicy = hasActivePolicyAsAdmin && isActivePolicyCurrencySupported;
-            // For business invoice receivers, we use the receiver policy to pay, so validate the receiver policy's currency
-            // For individual receivers, allow if user has an active admin policy with supported currency OR user's local currency is supported
-            const isPolicyCurrencySupported = invoiceReceiverPolicy ? isInvoiceReceiverPolicyCurrencySupported : canUseActivePolicy || isUserCurrencySupported;
+    /** Whether the IOU should be displayed in a nonagon */
+    isNonagon?: boolean;
 
-            const getPaymentSubItems = (payAsBusiness: boolean) => {
-                const requiredAccountType = payAsBusiness ? CONST.BANK_ACCOUNT.TYPE.BUSINESS : CONST.BANK_ACCOUNT.TYPE.PERSONAL;
+    /** Whether the IOU should be displayed in a decagon */
+    isDecagon?: boolean;
 
-                return formattedPaymentMethods
-                    .filter((method) => {
-                        const accountData = method?.accountData as AccountData;
-                        const isPartiallySetup = isBankAccountPartiallySetup(accountData?.state);
-                        return accountData?.type === requiredAccountType && !isPartiallySetup;
-                    })
-                    .map((formattedPaymentMethod) => ({
-                        text: formattedPaymentMethod?.title ?? '',
-                        description: formattedPaymentMethod?.description ?? '',
-                        icon: formattedPaymentMethod?.icon,
-                        shouldUpdateSelectedIndex: true,
-                        onSelected: () => {
-                            if (checkForNecessaryAction(CONST.IOU.PAYMENT_TYPE.EXPENSIFY)) {
-                                return;
-                            }
-                            onPress({
-                                paymentType: CONST.IOU.PAYMENT_TYPE.EXPENSIFY,
-                                payAsBusiness,
-                                methodID: formattedPaymentMethod.methodID,
-                                paymentMethod: formattedPaymentMethod.accountType,
-                            });
-                        },
-                        iconStyles: formattedPaymentMethod?.iconStyles,
-                        iconHeight: formattedPaymentMethod?.iconSize,
-                        iconWidth: formattedPaymentMethod?.iconSize,
-                        value: CONST.IOU.PAYMENT_TYPE.EXPENSIFY,
-                    }));
-            };
+    /** Whether the IOU should be displayed in a star */
+    isStar?: boolean;
 
-            const getPolicyID = () => {
-                if (chatReport?.invoiceReceiver?.type === CONST.REPORT.INVOICE_RECEIVER_TYPE.BUSINESS) {
-                    return chatReport?.invoiceReceiver?.policyID;
-                }
+    /** Whether the IOU should be displayed in a heart */
+    isHeart?: boolean;
 
-                if (canUseActivePolicy) {
-                    return activePolicy.id;
-                }
+    /** Whether the IOU should be displayed in a diamond */
+    isDiamond?: boolean;
 
-                return createWorkspace({
-                    introSelected,
-                    activePolicyID,
-                    currentUserAccountIDParam: currentUserPersonalDetails.accountID,
-                    currentUserEmailParam: email,
-                    betas,
-                    isSelfTourViewed,
-                    hasActiveAdminPolicies: !!activeAdminPolicies.length,
-                    policyName: generateDefaultWorkspaceName(email, lastWorkspaceNumber, translate),
-                }).policyID;
-            };
+    /** Whether the IOU should be displayed in a spade */
+    isSpade?: boolean;
 
-            const getInvoicesOptions = (payAsBusiness: boolean) => {
-                const addBankAccountItem = {
-                    text: translate('bankAccount.addBankAccount'),
-                    icon: icons.Bank,
-                    onSelected: () => {
-                        if (payAsBusiness) {
-                            navigateToBankAccountRoute({policyID: getPolicyID()});
-                        } else {
-                            Navigation.navigate(ROUTES.SETTINGS_ADD_BANK_ACCOUNT.route);
-                        }
-                    },
-                    value: CONST.IOU.PAYMENT_TYPE.ELSEWHERE,
-                };
-                return [
-                    ...(showPayViaExpensifyOptions ? getPaymentSubItems(payAsBusiness) : []),
-                    ...(showPayViaExpensifyOptions && isPolicyCurrencySupported ? [addBankAccountItem] : []),
-                    {
-                        text: translate('iou.payElsewhere', ''),
-                        icon: icons.Cash,
-                        value: CONST.IOU.PAYMENT_TYPE.ELSEWHERE,
-                        shouldUpdateSelectedIndex: true,
-                        onSelected: () => {
-                            if (checkForNecessaryAction(CONST.IOU.PAYMENT_TYPE.ELSEWHERE)) {
-                                return;
-                            }
-                            onPress({paymentType: CONST.IOU.PAYMENT_TYPE.ELSEWHERE, payAsBusiness});
-                        },
-                    },
-                ];
-            };
+    /** Whether the IOU should be displayed in a club */
+    isClub?: boolean;
 
-            if (isIndividualInvoiceRoomUtil(chatReport)) {
-                // Gate default so main split button never triggers Pay via Expensify when beta is off (or currency unsupported).
-                let invoiceDefaultValue = lastPaymentMethod ?? CONST.IOU.PAYMENT_TYPE.ELSEWHERE;
-                if (showPayViaExpensifyOptions && (hasIntentToPay || lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.EXPENSIFY)) {
-                    invoiceDefaultValue = CONST.IOU.PAYMENT_TYPE.EXPENSIFY;
-                } else if (lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.EXPENSIFY) {
-                    invoiceDefaultValue = CONST.IOU.PAYMENT_TYPE.ELSEWHERE;
-                }
-                buttonOptions.push({
-                    text: translate('iou.settlePersonal', formattedAmount),
-                    icon: icons.User,
-                    value: invoiceDefaultValue,
-                    backButtonText: translate('iou.individual'),
-                    subMenuItems: getInvoicesOptions(false),
-                });
-                buttonOptions.push({
-                    text: translate('iou.settleBusiness', formattedAmount),
-                    icon: icons.Building,
-                    value: invoiceDefaultValue,
-                    backButtonText: translate('iou.business'),
-                    subMenuItems: getInvoicesOptions(true),
-                });
-            } else {
-                // If there is pay as business option, we should show the submenu items instead.
-                buttonOptions.push(...getInvoicesOptions(true));
-            }
-        }
+    /** Whether the IOU should be displayed in a flag */
+    isFlag?: boolean;
 
-        if (shouldShowApproveButton) {
-            buttonOptions.push(approveButtonOption);
-        }
+    /** Whether the IOU should be displayed in a pin */
+    isPin?: boolean;
 
-        paymentButtonOptions = buttonOptions;
-    }
+    /** Whether the IOU should be displayed in a location */
+    isLocation?: boolean;
 
-    const selectPaymentType = (event: KYCFlowEvent, iouPaymentType: PaymentMethodType) => {
-        if (iouPaymentType === CONST.IOU.REPORT_ACTION_TYPE.APPROVE) {
-            if (confirmApproval) {
-                confirmApproval();
-            } else {
-                approveMoneyRequest({
-                    expenseReport: iouReport,
-                    expenseReportPolicy,
-                    policy,
-                    currentUserAccountIDParam: accountID,
-                    currentUserEmailParam: email ?? '',
-                    hasViolations,
-                    isASAPSubmitBetaEnabled,
-                    expenseReportCurrentNextStepDeprecated: iouReportNextStep,
-                    betas,
-                    userBillingGracePeriodEnds,
-                    amountOwed,
-                    ownerBillingGracePeriodEnd,
-                    full: false,
-                    delegateEmail,
-                });
-            }
-            return;
-        }
+    /** Whether the IOU should be displayed in a map */
+    isMap?: boolean;
 
-        if (isInvoiceReport) {
-            // if user has intent to pay, we should get the only bank account information to pay the invoice.
-            if (hasIntentToPay && isPayInvoiceViaExpensifyBetaEnabled) {
-                const currentBankInformation = formattedPaymentMethods.at(0) as BankAccount;
-                onPress({
-                    paymentType: CONST.IOU.PAYMENT_TYPE.EXPENSIFY,
-                    payAsBusiness: currentBankInformation.accountData?.type === CONST.BANK_ACCOUNT.TYPE.BUSINESS,
-                    methodID: currentBankInformation.methodID,
-                    paymentMethod: currentBankInformation.accountType,
-                });
-                return;
-            }
+    /** Whether the IOU should be displayed in a globe */
+    isGlobe?: boolean;
 
-            const isBusinessInvoice = bankAccount?.accountData?.type === CONST.BANK_ACCOUNT.TYPE.BUSINESS || isBusinessInvoiceRoom(chatReport);
-            if (iouPaymentType === CONST.IOU.PAYMENT_TYPE.ELSEWHERE) {
-                onPress({paymentType: iouPaymentType, payAsBusiness: isBusinessInvoice});
-                return;
-            }
-            onPress({
-                paymentType: iouPaymentType,
-                payAsBusiness: isBusinessInvoice,
-                methodID: lastBankAccountID,
-                paymentMethod: CONST.PAYMENT_METHODS.PERSONAL_BANK_ACCOUNT,
-                policyID: policyIDKey,
-            });
-        } else {
-            onPress({paymentType: iouPaymentType, payAsBusiness: false});
-        }
-    };
-    const selectPaymentMethod = (event: KYCFlowEvent, paymentType: string, triggerKYCFlow: TriggerKYCFlow, paymentMethod?: PaymentMethod, selectedPolicy?: Policy) => {
-        triggerKYCFlow({
-            event,
-            iouPaymentType: paymentType as PaymentMethodType,
-            paymentMethod,
-            policy: selectedPolicy ?? (event ? lastPaymentPolicy : undefined),
-        });
-        if (paymentType === CONST.IOU.PAYMENT_TYPE.EXPENSIFY || paymentType === CONST.IOU.PAYMENT_TYPE.VBBA) {
-            setPersonalBankAccountContinueKYCOnSuccess(ROUTES.ENABLE_PAYMENTS);
-        }
-    };
+    /** Whether the IOU should be displayed in a planet */
+    isPlanet?: boolean;
 
-    const handlePaymentSelection = (event: GestureResponderEvent | KeyboardEvent | undefined, selectedOption: string, triggerKYCFlow: (params: ContinueActionParams) => void) => {
-        const {paymentType, policyFromPaymentMethod, policyFromContext, shouldSelectPaymentMethod} = getActivePaymentType(
-            selectedOption,
-            activeAdminPolicies,
-            businessBankAccountOptions,
-            policyIDKey,
-        );
+    /** Whether the IOU should be displayed in a moon */
+    isMoon?: boolean;
 
-        if (checkForNecessaryAction(paymentType)) {
-            return;
-        }
-        const isPayingWithMethod = paymentType !== CONST.IOU.PAYMENT_TYPE.ELSEWHERE;
+    /** Whether the IOU should be displayed in a sun */
+    isSun?: boolean;
 
-        if ((!!policyFromPaymentMethod || shouldSelectPaymentMethod) && (isPayingWithMethod || !!policyFromPaymentMethod)) {
-            selectPaymentMethod(event, paymentType, triggerKYCFlow, selectedOption as PaymentMethod, policyFromPaymentMethod ?? policyFromContext);
-            return;
-        }
+    /** Whether the IOU should be displayed in a star */
+    isStar2?: boolean;
 
-        selectPaymentType(event, selectedOption as PaymentMethodType);
-    };
+    /** Whether the IOU should be displayed in a comet */
+    isComet?: boolean;
 
-    let customText: string;
-    if (shouldUseShortForm) {
-        customText = translate('iou.pay');
-    } else if (lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.ELSEWHERE) {
-        customText = translate('iou.payElsewhere', formattedAmount);
-    } else {
-        customText = translate('iou.settlePayment', formattedAmount);
-    }
+    /** Whether the IOU should be displayed in a meteor */
+    isMeteor?: boolean;
 
-    let secondaryTextRaw: string | undefined;
-    if (
-        shouldUseShortForm ||
-        lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.ELSEWHERE ||
-        (paymentButtonOptions.length === 1 && paymentButtonOptions.every((option) => option.value === CONST.IOU.PAYMENT_TYPE.ELSEWHERE)) ||
-        (shouldHidePaymentOptions && (shouldShowApproveButton || onlyShowPayElsewhere))
-    ) {
-        secondaryTextRaw = undefined;
-    } else if (lastPaymentPolicy) {
-        secondaryTextRaw = lastPaymentPolicy.name;
-    } else {
-        const bankAccountToDisplay = hasIntentToPay
-            ? ((formattedPaymentMethods.find((method) => method.methodID === policy?.achAccount?.bankAccountID) ?? formattedPaymentMethods.at(0)) as BankAccount)
-            : bankAccount;
+    /** Whether the IOU should be displayed in a galaxy */
+    isGalaxy?: boolean;
 
-        // Handle bank account payments first (expense reports require bank account, never wallet)
-        if ((lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.VBBA || (hasIntentToPay && isExpenseReport)) && !!policy?.achAccount) {
-            if (policy?.achAccount?.accountNumber) {
-                secondaryTextRaw = translate('paymentMethodList.bankAccountLastFour', policy?.achAccount?.accountNumber?.slice(-4));
-            } else if (bankAccountToDisplay?.accountData?.accountNumber) {
-                secondaryTextRaw = translate('paymentMethodList.bankAccountLastFour', bankAccountToDisplay?.accountData?.accountNumber?.slice(-4));
-            }
-            // Handle wallet payments for IOUs and bank account display for invoices
-        } else if (lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.EXPENSIFY || (hasIntentToPay && isInvoiceReport)) {
-            if (isInvoiceReport) {
-                const isBusinessBankAccount = bankAccountToDisplay?.accountData?.type === CONST.BANK_ACCOUNT.TYPE.BUSINESS;
-                secondaryTextRaw = translate(
-                    isBusinessBankAccount ? 'iou.invoiceBusinessBank' : 'iou.invoicePersonalBank',
-                    bankAccountToDisplay?.accountData?.accountNumber?.slice(-4) ?? '',
-                );
-            } else if (personalBankAccountList.length) {
-                secondaryTextRaw = translate('common.wallet');
-            }
-        } else if (bankAccount?.accountData?.type === CONST.BANK_ACCOUNT.TYPE.BUSINESS && bankAccount?.methodID === policy?.achAccount?.bankAccountID && isExpenseReportUtil(iouReport)) {
-            secondaryTextRaw = translate('paymentMethodList.bankAccountLastFour', bankAccount?.accountData?.accountNumber?.slice(-4) ?? '');
-        }
-    }
-    const secondaryText = truncate(secondaryTextRaw, {length: CONST.FORM_CHARACTER_LIMIT});
+    /** Whether the IOU should be displayed in a universe */
+    isUniverse?: boolean;
 
-    const defaultSelectedIndex = paymentButtonOptions.findIndex((paymentOption) => {
-        if (lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.ELSEWHERE) {
-            return paymentOption.value === CONST.IOU.PAYMENT_TYPE.ELSEWHERE;
-        }
+    /** Whether the IOU should be displayed in a multiverse */
+    isMultiverse?: boolean;
 
-        if (lastPaymentMethod === CONST.IOU.PAYMENT_TYPE.VBBA && businessBankAccountOptionList.length) {
-            return paymentOption.value === CONST.PAYMENT_METHODS.BUSINESS_BANK_ACCOUNT;
-        }
+    /** Whether the IOU should be displayed in a dimension */
+    isDimension?: boolean;
 
-        if (lastPaymentPolicy?.id) {
-            return paymentOption.value === lastPaymentPolicy.id;
-        }
+    /** Whether the IOU should be displayed in a portal */
+    isPortal?: boolean;
 
-        return false;
-    });
+    /** Whether the IOU should be displayed in a wormhole */
+    isWormhole?: boolean;
 
-    const shouldUseSplitButton = hasPreferredPaymentMethod || !!lastPaymentPolicy || ((isExpenseReport || isInvoiceReport) && hasIntentToPay);
-    const shouldLimitWidth = shouldUseShortForm && shouldUseSplitButton && !paymentButtonOptions.length;
-    const popoverUseScrollView = shouldPopoverUseScrollView(paymentButtonOptions);
+    /** Whether the IOU should be displayed in a blackhole */
+    isBlackhole?: boolean;
 
-    return (
-        <KYCWall
-            ref={kycWallRef}
-            onSuccessfulKYC={(paymentType) => onPress({paymentType})}
-            enablePaymentsRoute={enablePaymentsRoute}
-            addDebitCardRoute={addDebitCardRoute}
-            isDisabled={isOffline}
-            source={CONST.KYC_WALL_SOURCE.REPORT}
-            chatReportID={chatReportID}
-            addBankAccountRoute={isExpenseReport ? ROUTES.BANK_ACCOUNT_WITH_STEP_TO_OPEN.getRoute({policyID: iouReport?.policyID, backTo: Navigation.getActiveRoute()}) : undefined}
-            iouReport={iouReport}
-            policy={lastPaymentPolicy}
-            anchorAlignment={kycWallAnchorAlignment}
-            shouldShowPersonalBankAccountOption={shouldShowPersonalBankAccountOption}
-        >
-            {(triggerKYCFlow, buttonRef) => (
-                <ButtonWithDropdownMenu<string>
-                    onOptionsMenuShow={onPaymentOptionsShow}
-                    onOptionsMenuHide={onPaymentOptionsHide}
-                    buttonRef={buttonRef}
-                    shouldAlwaysShowDropdownMenu={isInvoiceReport && !onlyShowPayElsewhere}
-                    customText={customText}
-                    menuHeaderText={isInvoiceReport ? translate('workspace.invoices.paymentMethods.chooseInvoiceMethod') : undefined}
-                    isSplitButton={shouldUseSplitButton}
-                    isDisabled={isDisabled}
-                    shouldStayNormalOnDisable={shouldStayNormalOnDisable}
-                    isLoading={isLoading}
-                    defaultSelectedIndex={defaultSelectedIndex !== -1 ? defaultSelectedIndex : 0}
-                    onPress={(event, iouPaymentType) => handlePaymentSelection(event, iouPaymentType, triggerKYCFlow)}
-                    success={!hasOnlyHeldExpenses}
-                    extraSmall={extraSmall}
-                    secondLineText={secondaryText}
-                    pressOnEnter={pressOnEnter}
-                    options={paymentButtonOptions}
-                    onOptionSelected={(option) => {
-                        if (paymentButtonOptions.length === 1) {
-                            return;
-                        }
+    /** Whether the IOU should be displayed in a whitehole */
+    isWhitehole?: boolean;
 
-                        handlePaymentSelection(undefined, option.value, triggerKYCFlow);
-                    }}
-                    style={style}
-                    shouldUseShortForm={shouldUseShortForm}
-                    shouldPopoverUseScrollView={popoverUseScrollView}
-                    containerStyles={paymentButtonOptions.length > 5 ? styles.settlementButtonListContainer : {}}
-                    wrapperStyle={[wrapperStyle, shouldLimitWidth ? styles.settlementButtonShortFormWidth : {}]}
-                    disabledStyle={disabledStyle}
-                    buttonSize={buttonSize}
-                    anchorAlignment={paymentMethodDropdownAnchorAlignment}
-                    enterKeyEventListenerPriority={enterKeyEventListenerPriority}
-                    useKeyboardShortcuts={useKeyboardShortcuts}
-                    shouldUseModalPaddingStyle={paymentButtonOptions.length <= 5}
-                    sentryLabel={sentryLabel}
-                />
-            )}
-        </KYCWall>
-    );
-}
+    /** Whether the IOU should be displayed in a singularity */
+    isSingularity?: boolean;
 
-export default SettlementButton;
+    /** Whether the IOU should be displayed in a quantum */
+    isQuantum?: boolean;
+
+    /** Whether the IOU should be displayed in a particle */
+    isParticle?: boolean;
+
+    /** Whether the IOU should be displayed in a wave */
+    isWave?: boolean;
+
+    /** Whether the IOU should be displayed in a field */
+    isField?: boolean;
+
+    /** Whether the IOU should be displayed in a force */
+    isForce?: boolean;
+
+    /** Whether the IOU should be displayed in a energy */
+    isEnergy?: boolean;
+
+    /** Whether the IOU should be displayed in a power */
+    isPower?: boolean;
+
+    /** Whether the IOU should be displayed in a work */
+    isWork?: boolean;
+
+    /** Whether the IOU should be displayed in a heat */
+    isHeat?: boolean;
+
+    /** Whether the IOU should be displayed in a light */
+    isLight?: boolean;
+
+    /** Whether the IOU should be displayed in a sound */
+    isSound?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration?: boolean;
+
+    /** Whether the IOU should be displayed in a frequency */
+    isFrequency?: boolean;
+
+    /** Whether the IOU should be displayed in a wavelength */
+    isWavelength?: boolean;
+
+    /** Whether the IOU should be displayed in a amplitude */
+    isAmplitude?: boolean;
+
+    /** Whether the IOU should be displayed in a phase */
+    isPhase?: boolean;
+
+    /** Whether the IOU should be displayed in a interference */
+    isInterference?: boolean;
+
+    /** Whether the IOU should be displayed in a diffraction */
+    isDiffraction?: boolean;
+
+    /** Whether the IOU should be displayed in a refraction */
+    isRefraction?: boolean;
+
+    /** Whether the IOU should be displayed in a reflection */
+    isReflection?: boolean;
+
+    /** Whether the IOU should be displayed in a absorption */
+    isAbsorption?: boolean;
+
+    /** Whether the IOU should be displayed in a transmission */
+    isTransmission?: boolean;
+
+    /** Whether the IOU should be displayed in a scattering */
+    isScattering?: boolean;
+
+    /** Whether the IOU should be displayed in a polarization */
+    isPolarization?: boolean;
+
+    /** Whether the IOU should be displayed in a dispersion */
+    isDispersion?: boolean;
+
+    /** Whether the IOU should be displayed in a resonance */
+    isResonance?: boolean;
+
+    /** Whether the IOU should be displayed in a damping */
+    isDamping?: boolean;
+
+    /** Whether the IOU should be displayed in a oscillation */
+    isOscillation?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration2?: boolean;
+
+    /** Whether the IOU should be displayed in a wave */
+    isWave2?: boolean;
+
+    /** Whether the IOU should be displayed in a field */
+    isField2?: boolean;
+
+    /** Whether the IOU should be displayed in a force */
+    isForce2?: boolean;
+
+    /** Whether the IOU should be displayed in a energy */
+    isEnergy2?: boolean;
+
+    /** Whether the IOU should be displayed in a power */
+    isPower2?: boolean;
+
+    /** Whether the IOU should be displayed in a work */
+    isWork2?: boolean;
+
+    /** Whether the IOU should be displayed in a heat */
+    isHeat2?: boolean;
+
+    /** Whether the IOU should be displayed in a light */
+    isLight2?: boolean;
+
+    /** Whether the IOU should be displayed in a sound */
+    isSound2?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration3?: boolean;
+
+    /** Whether the IOU should be displayed in a frequency */
+    isFrequency2?: boolean;
+
+    /** Whether the IOU should be displayed in a wavelength */
+    isWavelength2?: boolean;
+
+    /** Whether the IOU should be displayed in a amplitude */
+    isAmplitude2?: boolean;
+
+    /** Whether the IOU should be displayed in a phase */
+    isPhase2?: boolean;
+
+    /** Whether the IOU should be displayed in a interference */
+    isInterference2?: boolean;
+
+    /** Whether the IOU should be displayed in a diffraction */
+    isDiffraction2?: boolean;
+
+    /** Whether the IOU should be displayed in a refraction */
+    isRefraction2?: boolean;
+
+    /** Whether the IOU should be displayed in a reflection */
+    isReflection2?: boolean;
+
+    /** Whether the IOU should be displayed in a absorption */
+    isAbsorption2?: boolean;
+
+    /** Whether the IOU should be displayed in a transmission */
+    isTransmission2?: boolean;
+
+    /** Whether the IOU should be displayed in a scattering */
+    isScattering2?: boolean;
+
+    /** Whether the IOU should be displayed in a polarization */
+    isPolarization2?: boolean;
+
+    /** Whether the IOU should be displayed in a dispersion */
+    isDispersion2?: boolean;
+
+    /** Whether the IOU should be displayed in a resonance */
+    isResonance2?: boolean;
+
+    /** Whether the IOU should be displayed in a damping */
+    isDamping2?: boolean;
+
+    /** Whether the IOU should be displayed in a oscillation */
+    isOscillation2?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration4?: boolean;
+
+    /** Whether the IOU should be displayed in a wave */
+    isWave3?: boolean;
+
+    /** Whether the IOU should be displayed in a field */
+    isField3?: boolean;
+
+    /** Whether the IOU should be displayed in a force */
+    isForce3?: boolean;
+
+    /** Whether the IOU should be displayed in a energy */
+    isEnergy3?: boolean;
+
+    /** Whether the IOU should be displayed in a power */
+    isPower3?: boolean;
+
+    /** Whether the IOU should be displayed in a work */
+    isWork3?: boolean;
+
+    /** Whether the IOU should be displayed in a heat */
+    isHeat3?: boolean;
+
+    /** Whether the IOU should be displayed in a light */
+    isLight3?: boolean;
+
+    /** Whether the IOU should be displayed in a sound */
+    isSound3?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration5?: boolean;
+
+    /** Whether the IOU should be displayed in a frequency */
+    isFrequency3?: boolean;
+
+    /** Whether the IOU should be displayed in a wavelength */
+    isWavelength3?: boolean;
+
+    /** Whether the IOU should be displayed in a amplitude */
+    isAmplitude3?: boolean;
+
+    /** Whether the IOU should be displayed in a phase */
+    isPhase3?: boolean;
+
+    /** Whether the IOU should be displayed in a interference */
+    isInterference3?: boolean;
+
+    /** Whether the IOU should be displayed in a diffraction */
+    isDiffraction3?: boolean;
+
+    /** Whether the IOU should be displayed in a refraction */
+    isRefraction3?: boolean;
+
+    /** Whether the IOU should be displayed in a reflection */
+    isReflection3?: boolean;
+
+    /** Whether the IOU should be displayed in a absorption */
+    isAbsorption3?: boolean;
+
+    /** Whether the IOU should be displayed in a transmission */
+    isTransmission3?: boolean;
+
+    /** Whether the IOU should be displayed in a scattering */
+    isScattering3?: boolean;
+
+    /** Whether the IOU should be displayed in a polarization */
+    isPolarization3?: boolean;
+
+    /** Whether the IOU should be displayed in a dispersion */
+    isDispersion3?: boolean;
+
+    /** Whether the IOU should be displayed in a resonance */
+    isResonance3?: boolean;
+
+    /** Whether the IOU should be displayed in a damping */
+    isDamping3?: boolean;
+
+    /** Whether the IOU should be displayed in a oscillation */
+    isOscillation3?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration6?: boolean;
+
+    /** Whether the IOU should be displayed in a wave */
+    isWave4?: boolean;
+
+    /** Whether the IOU should be displayed in a field */
+    isField4?: boolean;
+
+    /** Whether the IOU should be displayed in a force */
+    isForce4?: boolean;
+
+    /** Whether the IOU should be displayed in a energy */
+    isEnergy4?: boolean;
+
+    /** Whether the IOU should be displayed in a power */
+    isPower4?: boolean;
+
+    /** Whether the IOU should be displayed in a work */
+    isWork4?: boolean;
+
+    /** Whether the IOU should be displayed in a heat */
+    isHeat4?: boolean;
+
+    /** Whether the IOU should be displayed in a light */
+    isLight4?: boolean;
+
+    /** Whether the IOU should be displayed in a sound */
+    isSound4?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration7?: boolean;
+
+    /** Whether the IOU should be displayed in a frequency */
+    isFrequency4?: boolean;
+
+    /** Whether the IOU should be displayed in a wavelength */
+    isWavelength4?: boolean;
+
+    /** Whether the IOU should be displayed in a amplitude */
+    isAmplitude4?: boolean;
+
+    /** Whether the IOU should be displayed in a phase */
+    isPhase4?: boolean;
+
+    /** Whether the IOU should be displayed in a interference */
+    isInterference4?: boolean;
+
+    /** Whether the IOU should be displayed in a diffraction */
+    isDiffraction4?: boolean;
+
+    /** Whether the IOU should be displayed in a refraction */
+    isRefraction4?: boolean;
+
+    /** Whether the IOU should be displayed in a reflection */
+    isReflection4?: boolean;
+
+    /** Whether the IOU should be displayed in a absorption */
+    isAbsorption4?: boolean;
+
+    /** Whether the IOU should be displayed in a transmission */
+    isTransmission4?: boolean;
+
+    /** Whether the IOU should be displayed in a scattering */
+    isScattering4?: boolean;
+
+    /** Whether the IOU should be displayed in a polarization */
+    isPolarization4?: boolean;
+
+    /** Whether the IOU should be displayed in a dispersion */
+    isDispersion4?: boolean;
+
+    /** Whether the IOU should be displayed in a resonance */
+    isResonance4?: boolean;
+
+    /** Whether the IOU should be displayed in a damping */
+    isDamping4?: boolean;
+
+    /** Whether the IOU should be displayed in a oscillation */
+    isOscillation4?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration8?: boolean;
+
+    /** Whether the IOU should be displayed in a wave */
+    isWave5?: boolean;
+
+    /** Whether the IOU should be displayed in a field */
+    isField5?: boolean;
+
+    /** Whether the IOU should be displayed in a force */
+    isForce5?: boolean;
+
+    /** Whether the IOU should be displayed in a energy */
+    isEnergy5?: boolean;
+
+    /** Whether the IOU should be displayed in a power */
+    isPower5?: boolean;
+
+    /** Whether the IOU should be displayed in a work */
+    isWork5?: boolean;
+
+    /** Whether the IOU should be displayed in a heat */
+    isHeat5?: boolean;
+
+    /** Whether the IOU should be displayed in a light */
+    isLight5?: boolean;
+
+    /** Whether the IOU should be displayed in a sound */
+    isSound5?: boolean;
+
+    /** Whether the IOU should be displayed in a vibration */
+    isVibration9?: boolean;
+
+    /** Whether the IOU should be displayed in a frequency */
+    isFrequency5?: boolean;
+
+    /** Whether the IOU should be displayed in a wavelength */
+    isWavelength5?: boolean;
+
+    /** Whether the IOU should be displayed in a amplitude */
+    isAmplitude5?: boolean;
+
+    /** Whether the IOU should be displayed in a phase */
+    isPhase5?: boolean;
+
+    /** Whether the IOU should be displayed in a interference */
+    isInterference5?: boolean;
+
+    /** Whether the IOU should be displayed in a diffraction */
+    isDiffraction5?: boolean;
+
+    /** Whether the IOU should be displayed in a refraction */
+    isRefraction5?: boolean;
+
+    /** Whether the IOU should be displayed in a reflection */
+    isReflection5?: boolean;
+
+    /** Whether the IOU should be displayed in a absorption */
+    isAbsorption5?: boolean;
+
+    /** Whether
