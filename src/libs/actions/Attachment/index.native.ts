@@ -1,112 +1,59 @@
-import RNFetchBlob from 'react-native-blob-util';
-import RNFS from 'react-native-fs';
-import Onyx from 'react-native-onyx';
-import {getImageCacheFileExtension} from '@libs/AttachmentUtils';
-import Log from '@libs/Log';
-import CONST from '@src/CONST';
+import * as FileSystem from 'expo-file-system';
+import * as Network from 'expo-network';
 import ONYXKEYS from '@src/ONYXKEYS';
-import type {CacheAttachmentProps, GetCachedAttachmentProps, RemoveCachedAttachmentProps} from './types';
+import type {OnyxCollectionKey} from '@src/types/onyx';
+import Onyx from 'react-native-onyx';
+import Log from '@libs/Log';
 
-const ATTACHMENT_DIR = `${RNFS.DocumentDirectoryPath}/attachments`;
+const cacheKeys: OnyxCollectionKey[] = [ONYXKEYS.CACHED_IMAGE];
 
-async function cacheAttachment({attachmentID, uri, mimeType}: CacheAttachmentProps) {
-    const isLocalFile = uri.startsWith('file://');
-    const fileExtension = getImageCacheFileExtension(mimeType ?? '');
-
-    // For local file uploads and the file type is supported for caching, then copy instead of re-downloading the file
-    if (isLocalFile && fileExtension) {
-        const fileName = `${attachmentID}.${fileExtension}`;
-        const destPath = `${ATTACHMENT_DIR}/${fileName}`;
-
-        try {
-            await RNFS.copyFile(uri, destPath);
-            await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
-                attachmentID,
-                source: destPath,
-            });
-        } catch (error) {
-            Log.warn('[AttachmentCache] Failed to cache attachment', {error});
-        }
-
-        return;
-    }
-
+async function cacheAttachment(uri: string, headers: Record<string, string>): Promise<void> {
     try {
-        // HEAD first to validate size and type before downloading
-        const headResponse = await fetch(uri, {method: 'HEAD'});
-        const contentType = headResponse.headers.get('content-type') ?? '';
-        const contentSize = Number(headResponse.headers.get('content-length') ?? 0);
-
-        // Exit if the attachment size is too large
-        if (contentSize > CONST.API_ATTACHMENT_VALIDATIONS.MAX_SIZE) {
-            Log.warn('[AttachmentCache] Attachment is too large, skipping cache', {attachmentID, contentSize});
+        const networkState = await Network.getNetworkStateAsync();
+        if (!networkState.isInternetReachable) {
             return;
         }
 
-        const attachmentFileExtension = getImageCacheFileExtension(contentType ?? '');
-
-        // If attachmentFileExtension is not set properly / or doesn't exist in our lists, then we need to exit
-        if (!attachmentFileExtension) {
-            Log.warn('[AttachmentCache] Unsupported file type, skipping cache', {attachmentID, contentType});
-            return;
+        const response = await fetch(uri, {headers});
+        if (!response.ok) {
+            throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
         }
-
-        const fileName = `${attachmentID}.${attachmentFileExtension}`;
-        const filePath = `${ATTACHMENT_DIR}/${fileName}`;
-        await RNFetchBlob.config({path: filePath}).fetch('GET', uri);
-
-        await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, {
-            attachmentID,
-            source: filePath,
-            remoteSource: uri,
-        });
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = `data:${response.headers.get('Content-Type') ?? 'image/jpeg'};base64,${arrayBufferToBase64(arrayBuffer)}`;
+        const fileUri = `${FileSystem.cacheDirectory}${encodeURIComponent(uri)}`;
+        await FileSystem.writeAsStringAsync(fileUri, base64, {encoding: FileSystem.EncodingType.Base64});
+        Onyx.merge(ONYXKEYS.CACHED_IMAGE, {[uri]: fileUri});
     } catch (error) {
-        Log.warn('[AttachmentCache] Failed to cache attachment', {error});
+        Log.warn('Failed to cache attachment', {uri, error: (error as Error).message});
     }
 }
 
-async function getCachedAttachment({attachmentID, attachment, currentSource}: GetCachedAttachmentProps) {
-    const isStale = attachment ? attachment?.remoteSource && attachment.remoteSource !== currentSource : false;
-    if (isStale) {
-        // Only re-cache the [markdown-attachment] if it is outdated (updated)
-        cacheAttachment({attachmentID, uri: currentSource});
-        return currentSource;
-    }
-
-    const localSource = attachment?.source;
-    if (localSource) {
-        return localSource;
-    }
-
-    return currentSource;
-}
-
-async function removeCachedAttachment({attachmentID, localSource}: RemoveCachedAttachmentProps): Promise<void> {
-    if (!localSource) {
-        return;
-    }
-
+async function getCachedAttachment(uri: string): Promise<string | null> {
     try {
-        const exists = await RNFS.exists(localSource);
-        if (exists) {
-            await RNFS.unlink(localSource);
+        const cachedUris = await Onyx.get(ONYXKEYS.CACHED_IMAGE);
+        const savedUri = cachedUris?.[uri];
+        if (!savedUri) {
+            return null;
         }
-        await Onyx.set(`${ONYXKEYS.COLLECTION.ATTACHMENT}${attachmentID}`, null);
+        const metadata = await FileSystem.getInfoAsync(savedUri);
+        if (metadata.exists) {
+            return savedUri;
+        }
+        return null;
     } catch (error) {
-        Log.warn('[AttachmentCache] Failed to remove cached attachment', {attachmentID, error});
+        Log.warn('Failed to get cached attachment', {uri, error: (error as Error).message});
+        return null;
     }
 }
 
-async function clearCachedAttachments(): Promise<void> {
-    try {
-        const exists = await RNFS.exists(ATTACHMENT_DIR);
-        if (exists) {
-            await RNFS.unlink(ATTACHMENT_DIR);
-        }
-        await Onyx.setCollection(ONYXKEYS.COLLECTION.ATTACHMENT, {});
-    } catch (error) {
-        Log.warn('[AttachmentCache] Failed to clear cached attachments', {error});
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
     }
+    return btoa(binary);
 }
 
-export {cacheAttachment, getCachedAttachment, removeCachedAttachment, clearCachedAttachments};
+export {cacheAttachment, getCachedAttachment};
